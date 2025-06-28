@@ -2,6 +2,7 @@
   "name": "@mcp-server/types",
   "version": "0.1.0",
   "description": "Type definitions for freee MCP server",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

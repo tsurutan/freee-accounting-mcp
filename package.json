@@ -15,10 +15,18 @@
     "type-check": "turbo run type-check",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "debug": "npm run debug --workspace=freee-accounting-mcp",
+    "debug:build": "npm run debug:build --workspace=freee-accounting-mcp",
+    "inspect": "npx @modelcontextprotocol/inspector tsx apps/freee-accounting/src/index.ts",
+    "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node apps/freee-accounting/dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.5",
     "prettier": "^3.0.0",
     "turbo": "^1.10.0",
     "typescript": "^5.0.0"
