@@ -1,0 +1,39 @@
+{
+  "name": "freee-accounting-mcp",
+  "version": "0.1.0",
+  "description": "MCP Server for freee accounting API integration",
+  "main": "dist/index.js",
+  "bin": {
+    "freee-accounting-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@mcp-server/types": "*",
+    "@mcp-server/shared": "*",
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
