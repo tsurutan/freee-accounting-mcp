@@ -1,5 +1,6 @@
 module.exports = {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
+  extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
   roots: ['<rootDir>/packages', '<rootDir>/apps'],
   testMatch: [
@@ -9,7 +10,9 @@ module.exports = {
     '<rootDir>/apps/*/src/**/?(*.)+(spec|test).ts',
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      useESM: true,
+    }],
   },
   collectCoverageFrom: [
     'packages/*/src/**/*.ts',
@@ -24,7 +27,7 @@ module.exports = {
     '/dist/',
     '/build/',
   ],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@mcp-server/types$': '<rootDir>/packages/types/src',
     '^@mcp-server/shared$': '<rootDir>/packages/shared/src',
   },

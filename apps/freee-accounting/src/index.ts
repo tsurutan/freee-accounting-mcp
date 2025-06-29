@@ -28,6 +28,10 @@ try {
   // 環境変数読み込みエラーは無視（MCP Inspector使用時）
 }
 
+// デバッグ用: 環境変数の確認
+console.error('DEBUG_FREEE_API:', process.env.DEBUG_FREEE_API);
+console.error('DEBUG_AXIOS:', process.env.DEBUG_AXIOS);
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -42,6 +46,7 @@ import {
   FreeeClient,
   FreeeOAuthClient,
   logger,
+  LogLevel,
   MetricsCollector,
   SecurityAuditor
 } from '@mcp-server/shared';
@@ -53,9 +58,40 @@ const accessToken = process.env.FREEE_ACCESS_TOKEN;
 const appConfig = getConfig();
 const baseUrl = appConfig.baseUrl;
 
+// 環境変数の検証
+function validateEnvironmentVariables(): { isValid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // 直接トークン認証の場合
+  if (accessToken) {
+    if (accessToken.length < 10) {
+      errors.push('FREEE_ACCESS_TOKEN が短すぎます');
+    }
+  } else {
+    // OAuth認証の場合
+    if (!process.env.FREEE_CLIENT_ID) {
+      errors.push('FREEE_CLIENT_ID が設定されていません');
+    }
+    if (!process.env.FREEE_CLIENT_SECRET) {
+      errors.push('FREEE_CLIENT_SECRET が設定されていません');
+    }
+    if (!process.env.FREEE_REDIRECT_URI) {
+      errors.push('FREEE_REDIRECT_URI が設定されていません（デフォルト値を使用）');
+    }
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
 // 認証方式の判定
 const useDirectToken = !!accessToken;
 const useOAuth = !useDirectToken && !!(process.env.FREEE_CLIENT_ID && process.env.FREEE_CLIENT_SECRET);
+
+// 環境変数の検証実行
+const envValidation = validateEnvironmentVariables();
+if (!envValidation.isValid && !useDirectToken && !useOAuth) {
+  console.error('環境変数設定エラー:', envValidation.errors.join(', '));
+}
 
 // OAuth設定（OAuth認証使用時のみ）
 let oauthConfig: OAuthConfig | undefined;
@@ -93,6 +129,69 @@ const freeeClient = new FreeeClient({
   enableCache: true,
   cacheTtl: 5 * 60 * 1000, // 5分
 });
+
+// デバッグ用: FreeeClient初期化確認
+console.error('FreeeClient initialized with debug flags:', {
+  DEBUG_FREEE_API: process.env.DEBUG_FREEE_API,
+  DEBUG_AXIOS: process.env.DEBUG_AXIOS,
+});
+
+// デバッグ用: axiosリクエスト/レスポンスのログ出力
+if (process.env.DEBUG_AXIOS === 'true') {
+  // FreeeClientの内部axiosインスタンスにアクセスしてインターセプターを追加
+  const axiosInstance = (freeeClient as any).httpClient;
+
+  if (axiosInstance) {
+    // リクエストインターセプター
+    axiosInstance.interceptors.request.use(
+      (config: any) => {
+        console.log('\n🚀 [AXIOS REQUEST]');
+        console.log('URL:', config.url);
+        console.log('Method:', config.method?.toUpperCase());
+        console.log('Headers:', JSON.stringify(config.headers, null, 2));
+        if (config.params) {
+          console.log('Params:', JSON.stringify(config.params, null, 2));
+        }
+        if (config.data) {
+          console.log('Data:', typeof config.data === 'string' ? config.data : JSON.stringify(config.data, null, 2));
+        }
+        console.log('---');
+        return config;
+      },
+      (error: any) => {
+        console.error('❌ [AXIOS REQUEST ERROR]', error);
+        return Promise.reject(error);
+      }
+    );
+
+    // レスポンスインターセプター
+    axiosInstance.interceptors.response.use(
+      (response: any) => {
+        console.log('\n✅ [AXIOS RESPONSE]');
+        console.log('Status:', response.status, response.statusText);
+        console.log('URL:', response.config?.url);
+        console.log('Headers:', JSON.stringify(response.headers, null, 2));
+        console.log('Data:', JSON.stringify(response.data, null, 2));
+        console.log('---\n');
+        return response;
+      },
+      (error: any) => {
+        console.error('\n❌ [AXIOS RESPONSE ERROR]');
+        console.error('Status:', error.response?.status, error.response?.statusText);
+        console.error('URL:', error.config?.url);
+        if (error.response?.headers) {
+          console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+        }
+        if (error.response?.data) {
+          console.error('Error Data:', JSON.stringify(error.response.data, null, 2));
+        }
+        console.error('Message:', error.message);
+        console.error('---\n');
+        return Promise.reject(error);
+      }
+    );
+  }
+}
 
 // メトリクス収集器を初期化
 const metricsCollector = new MetricsCollector();
@@ -263,15 +362,15 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 事業所一覧を取得
-      const response = await freeeClient.get('/api/1/companies');
+      // 事業所一覧を取得（型安全なメソッドを使用）
+      const response = await freeeClient.getCompanies();
       return {
         contents: [
           {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              companies: response.data,
+              companies: response.companies,
               timestamp: new Date().toISOString(),
             }, null, 2),
           },
@@ -327,9 +426,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所の勘定科目一覧を取得
+      // 固定の事業所の勘定科目一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
-      const accountItemsResponse = await freeeClient.get(`/api/1/account_items?company_id=${companyId}`);
+      const accountItemsResponse = await freeeClient.getAccountItems(companyId);
 
       return {
         contents: [
@@ -337,7 +436,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              account_items: accountItemsResponse.data,
+              account_items: accountItemsResponse.account_items,
               company_id: companyId,
               timestamp: new Date().toISOString(),
             }, null, 2),
@@ -361,9 +460,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所の取引先一覧を取得
+      // 固定の事業所の取引先一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
-      const partnersResponse = await freeeClient.get(`/api/1/partners?company_id=${companyId}`);
+      const partnersResponse = await freeeClient.getPartners(companyId);
 
       return {
         contents: [
@@ -371,7 +470,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              partners: partnersResponse.data,
+              partners: partnersResponse.partners,
               company_id: companyId,
               timestamp: new Date().toISOString(),
             }, null, 2),
@@ -395,9 +494,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所の部門一覧を取得
+      // 固定の事業所の部門一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
-      const sectionsResponse = await freeeClient.get(`/api/1/sections?company_id=${companyId}`);
+      const sectionsResponse = await freeeClient.getSections(companyId);
 
       return {
         contents: [
@@ -405,7 +504,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              sections: sectionsResponse.data,
+              sections: sectionsResponse.sections,
               company_id: companyId,
               timestamp: new Date().toISOString(),
             }, null, 2),
@@ -429,9 +528,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所の品目一覧を取得
+      // 固定の事業所の品目一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
-      const itemsResponse = await freeeClient.get(`/api/1/items?company_id=${companyId}`);
+      const itemsResponse = await freeeClient.getItems(companyId);
 
       return {
         contents: [
@@ -439,7 +538,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              items: itemsResponse.data,
+              items: itemsResponse.items,
               company_id: companyId,
               timestamp: new Date().toISOString(),
             }, null, 2),
@@ -463,9 +562,9 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所のメモタグ一覧を取得
+      // 固定の事業所のメモタグ一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
-      const tagsResponse = await freeeClient.get(`/api/1/tags?company_id=${companyId}`);
+      const tagsResponse = await freeeClient.getTags(companyId);
 
       return {
         contents: [
@@ -473,7 +572,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              tags: tagsResponse.data,
+              tags: tagsResponse.tags,
               company_id: companyId,
               timestamp: new Date().toISOString(),
             }, null, 2),
@@ -497,41 +596,28 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         };
       }
 
-      // 固定の事業所の取引一覧を取得
+      // 固定の事業所の取引一覧を取得（型安全なメソッドを使用）
       const companyId = getCompanyId();
 
       // 事業所一覧を取得して、指定した事業所IDが存在するかチェック
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const rawData = companiesResponse.data as any;
-      const companies = rawData?.companies || rawData || [];
-      const targetCompany = companies.find((c: any) => c.id === companyId);
+      const companiesResponse = await freeeClient.getCompanies();
+      const companies = companiesResponse.companies;
+      const targetCompany = companies.find(c => c.id === companyId);
 
       // より広い期間の取引を取得（過去365日）
       const { startDate, endDate } = getDateRange(365);
 
-      // パラメータの構築（既存のget-dealsツールと同じ方式）
-      const params = new URLSearchParams({
-        company_id: companyId.toString(),
+      // 型安全なメソッドで取引一覧を取得
+      const dealsResponse = await freeeClient.getDeals({
+        company_id: companyId,
         start_issue_date: startDate,
         end_issue_date: endDate,
-        limit: '100',
-        offset: '0',
+        limit: 100,
+        offset: 0
       });
 
-      const dealsResponse = await freeeClient.get(`/api/1/deals?${params.toString()}`);
-
-      // freee APIのレスポンス形式に対応（既存実装と同じロジック）
-      let deals: any[] = [];
-      if (dealsResponse.data) {
-        const data = dealsResponse.data as any;
-        if (Array.isArray(data)) {
-          deals = data;
-        } else if (data.deals && Array.isArray(data.deals)) {
-          deals = data.deals;
-        } else if (data.data && Array.isArray(data.data)) {
-          deals = data.data;
-        }
-      }
+      // 型安全なレスポンス処理
+      const deals = dealsResponse.deals;
 
       return {
         contents: [
@@ -543,10 +629,8 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
               company_id: companyId,
               period: { start_date: startDate, end_date: endDate },
               deals_count: deals.length,
-              api_url: `/api/1/deals?${params.toString()}`,
-              raw_response_structure: dealsResponse.data ? Object.keys(dealsResponse.data) : 'no_data',
-              raw_response_sample: dealsResponse.data,
-              available_companies: companies.map((c: any) => ({ id: c.id, name: c.name })),
+              total_count: dealsResponse.meta.total_count,
+              available_companies: companies.map(c => ({ id: c.id, name: c.name })),
               target_company_found: !!targetCompany,
               target_company_info: targetCompany,
               timestamp: new Date().toISOString(),
@@ -632,6 +716,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             state: {
               type: 'string',
               description: 'CSRF保護用のstate パラメータ（オプション）',
+            },
+            enable_company_selection: {
+              type: 'boolean',
+              description: '事業所選択を有効にするかどうか（デフォルト: true）',
             },
           },
         },
@@ -964,6 +1052,58 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
         },
       },
+      {
+        name: 'debug-info',
+        description: 'デバッグ情報を取得します（開発・運用支援）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            include_logs: {
+              type: 'boolean',
+              description: 'ログ情報を含めるかどうか（デフォルト: false）',
+            },
+            include_metrics: {
+              type: 'boolean',
+              description: 'メトリクス情報を含めるかどうか（デフォルト: true）',
+            },
+            include_security: {
+              type: 'boolean',
+              description: 'セキュリティ監査ログを含めるかどうか（デフォルト: false）',
+            },
+          },
+        },
+      },
+      {
+        name: 'health-check',
+        description: 'システムヘルスチェックを実行します',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            detailed: {
+              type: 'boolean',
+              description: '詳細なヘルスチェックを実行するかどうか（デフォルト: false）',
+            },
+          },
+        },
+      },
+      {
+        name: 'security-audit',
+        description: 'セキュリティ監査ログを取得・分析します',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            severity: {
+              type: 'string',
+              enum: ['low', 'medium', 'high', 'critical'],
+              description: '特定の重要度のログのみを取得（オプション）',
+            },
+            summary_only: {
+              type: 'boolean',
+              description: 'サマリー情報のみを表示するかどうか（デフォルト: false）',
+            },
+          },
+        },
+      },
     ],
   };
 });
@@ -987,12 +1127,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
         const state = args?.state as string | undefined;
-        const authUrl = oauthClient.generateAuthUrl(state);
+        const enableCompanySelection = args?.enable_company_selection !== false; // デフォルトtrue
+        const authUrl = oauthClient.generateAuthUrl(state, enableCompanySelection);
+
+        const companySelectionNote = enableCompanySelection
+          ? '\n\n※ 事業所選択が有効になっています。認証時に事業所を選択してください。'
+          : '\n\n※ 事業所選択が無効になっています。全ての事業所にアクセス可能になります。';
+
         return {
           content: [
             {
               type: 'text',
-              text: `認証URL: ${authUrl}\n\nこのURLにアクセスしてfreeeアカウントで認証を行ってください。`,
+              text: `認証URL: ${authUrl}\n\nこのURLにアクセスしてfreeeアカウントで認証を行ってください。${companySelectionNote}`,
             },
           ],
         };
@@ -1015,11 +1161,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const tokens = await oauthClient.exchangeCodeForTokens(code);
+
+        // 事業所情報を含む詳細な認証完了メッセージ
+        let message = `認証が完了しました。\nアクセストークンの有効期限: ${new Date((tokens.created_at + tokens.expires_in) * 1000).toLocaleString()}`;
+
+        if (tokens.company_id) {
+          message += `\n選択された事業所ID: ${tokens.company_id}`;
+        }
+
+        if (tokens.external_cid) {
+          message += `\n外部連携ID: ${tokens.external_cid}`;
+        }
+
+        message += `\nスコープ: ${tokens.scope}`;
+
         return {
           content: [
             {
               type: 'text',
-              text: `認証が完了しました。\nアクセストークンの有効期限: ${new Date((tokens.created_at + tokens.expires_in) * 1000).toLocaleString()}`,
+              text: message,
             },
           ],
         };
@@ -1039,11 +1199,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const authState = oauthClient.getAuthState();
           if (authState.isAuthenticated) {
             const expiresAt = authState.expiresAt ? new Date(authState.expiresAt * 1000).toLocaleString() : '不明';
+
+            // 事業所情報を追加
+            let statusMessage = `認証済み（OAuth認証）\nトークン有効期限: ${expiresAt}`;
+
+            const companyId = oauthClient.getCompanyId();
+            const externalCid = oauthClient.getExternalCid();
+
+            if (companyId) {
+              statusMessage += `\n認証済み事業所ID: ${companyId}`;
+            }
+
+            if (externalCid) {
+              statusMessage += `\n外部連携ID: ${externalCid}`;
+            }
+
+            if (authState.tokens) {
+              statusMessage += `\nスコープ: ${authState.tokens.scope}`;
+            }
+
+            statusMessage += `\n事業所選択: ${oauthClient.isCompanySelectionEnabled() ? '有効' : '無効'}`;
+
             return {
               content: [
                 {
                   type: 'text',
-                  text: `認証済み（OAuth認証）\nトークン有効期限: ${expiresAt}`,
+                  text: statusMessage,
                 },
               ],
             };
@@ -1088,10 +1269,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         try {
-          // 事業所一覧を取得
-          const companiesResponse = await freeeClient.get('/api/1/companies');
-          const rawData = companiesResponse.data as any;
-          const companies = rawData?.companies || rawData || [];
+          // 事業所一覧を取得（型安全なメソッドを使用）
+          const companiesResponse = await freeeClient.getCompanies();
+          const companies = companiesResponse.companies;
 
           if (companies.length === 0) {
             return {
@@ -1531,6 +1711,291 @@ ${Object.entries(healthResults).map(([name, result]) =>
         };
       }
 
+      case 'debug-info': {
+        const includeLogs = args?.include_logs === true;
+        const includeMetrics = args?.include_metrics !== false; // デフォルトtrue
+        const includeSecurity = args?.include_security === true;
+
+        let debugInfo = '# デバッグ情報\n\n';
+
+        // 基本情報
+        debugInfo += '## 基本情報\n';
+        debugInfo += `- サーバー名: freee-accounting-mcp\n`;
+        debugInfo += `- バージョン: 0.1.0\n`;
+        debugInfo += `- 起動時刻: ${new Date().toISOString()}\n`;
+        debugInfo += `- Node.js バージョン: ${process.version}\n`;
+        debugInfo += `- プラットフォーム: ${process.platform}\n`;
+        debugInfo += `- アーキテクチャ: ${process.arch}\n\n`;
+
+        // 認証情報
+        debugInfo += '## 認証情報\n';
+        const authMode = useDirectToken ? '直接トークン認証' : useOAuth ? 'OAuth認証' : '認証未設定';
+        debugInfo += `- 認証方式: ${authMode}\n`;
+        debugInfo += `- アクセストークン: ${!!accessToken ? '設定済み' : '未設定'}\n`;
+        debugInfo += `- クライアントID: ${!!process.env.FREEE_CLIENT_ID ? '設定済み' : '未設定'}\n`;
+        debugInfo += `- クライアントシークレット: ${!!process.env.FREEE_CLIENT_SECRET ? '設定済み' : '未設定'}\n`;
+
+        if (useOAuth && oauthClient) {
+          const authState = oauthClient.getAuthState();
+          debugInfo += `- OAuth認証状態: ${authState.isAuthenticated ? '認証済み' : '未認証'}\n`;
+          if (authState.isAuthenticated && authState.tokens) {
+            debugInfo += `- トークン有効期限: ${new Date((authState.tokens.created_at + authState.tokens.expires_in) * 1000).toISOString()}\n`;
+            debugInfo += `- 事業所ID: ${oauthClient.getCompanyId() || '未設定'}\n`;
+          }
+        }
+        debugInfo += '\n';
+
+        // 設定情報
+        debugInfo += '## 設定情報\n';
+        const config = getConfig();
+        debugInfo += `- ベースURL: ${config.baseUrl}\n`;
+        debugInfo += `- 事業所ID: ${config.companyId}\n`;
+        debugInfo += `- デフォルト取得期間: ${config.defaultDealsPeriodDays}日\n`;
+        debugInfo += `- デフォルト取得件数: ${config.defaultDealsLimit}件\n\n`;
+
+        // メトリクス情報
+        if (includeMetrics) {
+          debugInfo += '## メトリクス情報\n';
+          const performanceMetrics = metricsCollector.getPerformanceMetrics();
+          const systemMetrics = metricsCollector.getSystemMetrics();
+
+          debugInfo += `### パフォーマンス\n`;
+          debugInfo += `- 総リクエスト数: ${performanceMetrics.requestCount}\n`;
+          debugInfo += `- エラー数: ${performanceMetrics.errorCount}\n`;
+          debugInfo += `- 平均レスポンス時間: ${performanceMetrics.averageResponseTime.toFixed(2)}ms\n`;
+          debugInfo += `- キャッシュヒット率: ${performanceMetrics.cacheHitRate.toFixed(2)}%\n`;
+          debugInfo += `- レート制限ヒット数: ${performanceMetrics.rateLimitHits}\n`;
+          debugInfo += `- 認証回数: ${performanceMetrics.authenticationCount}\n\n`;
+
+          debugInfo += `### システム\n`;
+          debugInfo += `- メモリ使用量: ${(systemMetrics.memoryUsage.rss / 1024 / 1024).toFixed(2)}MB\n`;
+          debugInfo += `- ヒープ使用量: ${(systemMetrics.memoryUsage.heapUsed / 1024 / 1024).toFixed(2)}MB\n`;
+          debugInfo += `- CPU使用率: ${systemMetrics.cpuUsage.toFixed(2)}%\n`;
+          debugInfo += `- 稼働時間: ${(systemMetrics.uptime / 3600).toFixed(2)}時間\n\n`;
+        }
+
+        // ログ情報
+        if (includeLogs) {
+          debugInfo += '## ログ情報\n';
+          const logs = logger.getLogs();
+          const recentLogs = logs.slice(-10); // 最新10件
+
+          debugInfo += `- 総ログ数: ${logs.length}\n`;
+          debugInfo += `- ログレベル: ${logger.getLogLevel()}\n\n`;
+
+          if (recentLogs.length > 0) {
+            debugInfo += '### 最新ログ（10件）\n';
+            recentLogs.forEach(log => {
+              debugInfo += `[${log.timestamp}] [${LogLevel[log.level]}] ${log.message}\n`;
+            });
+            debugInfo += '\n';
+          }
+        }
+
+        // セキュリティ監査ログ
+        if (includeSecurity) {
+          debugInfo += '## セキュリティ監査ログ\n';
+          const securityLogs = SecurityAuditor.getLogs();
+          const recentSecurityLogs = securityLogs.slice(-5); // 最新5件
+
+          debugInfo += `- 総監査ログ数: ${securityLogs.length}\n\n`;
+
+          if (recentSecurityLogs.length > 0) {
+            debugInfo += '### 最新監査ログ（5件）\n';
+            recentSecurityLogs.forEach(log => {
+              debugInfo += `[${log.timestamp}] [${log.severity.toUpperCase()}] ${log.event}\n`;
+            });
+            debugInfo += '\n';
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: debugInfo,
+            },
+          ],
+        };
+      }
+
+      case 'health-check': {
+        const detailed = args?.detailed === true;
+        let healthStatus = '# システムヘルスチェック\n\n';
+
+        // 基本ヘルスチェック
+        healthStatus += '## 基本ヘルスチェック\n';
+
+        // 認証状態チェック
+        const authCheck = checkAuthenticationStatus();
+        healthStatus += `- 認証状態: ${authCheck.isAuthenticated ? '✅ 正常' : '❌ 異常'}\n`;
+
+        // メモリ使用量チェック
+        const memoryUsage = process.memoryUsage();
+        const memoryUsageMB = memoryUsage.rss / 1024 / 1024;
+        const memoryStatus = memoryUsageMB < 500 ? '✅ 正常' : memoryUsageMB < 1000 ? '⚠️ 注意' : '❌ 異常';
+        healthStatus += `- メモリ使用量: ${memoryStatus} (${memoryUsageMB.toFixed(2)}MB)\n`;
+
+        // 稼働時間チェック
+        const uptimeHours = process.uptime() / 3600;
+        healthStatus += `- 稼働時間: ✅ ${uptimeHours.toFixed(2)}時間\n`;
+
+        if (detailed) {
+          healthStatus += '\n## 詳細ヘルスチェック\n';
+
+          // API接続テスト
+          if (authCheck.isAuthenticated) {
+            try {
+              const startTime = Date.now();
+              await freeeClient.get('/api/1/companies');
+              const responseTime = Date.now() - startTime;
+              const apiStatus = responseTime < 1000 ? '✅ 正常' : responseTime < 3000 ? '⚠️ 遅延' : '❌ 異常';
+              healthStatus += `- freee API接続: ${apiStatus} (${responseTime}ms)\n`;
+            } catch (error: any) {
+              healthStatus += `- freee API接続: ❌ 異常 (${error.message})\n`;
+            }
+          } else {
+            healthStatus += `- freee API接続: ⚠️ 認証が必要\n`;
+          }
+
+          // OAuth認証状態（OAuth使用時）
+          if (useOAuth && oauthClient) {
+            const authState = oauthClient.getAuthState();
+            if (authState.isAuthenticated && authState.tokens) {
+              const expiresAt = authState.tokens.created_at + authState.tokens.expires_in;
+              const now = Math.floor(Date.now() / 1000);
+              const timeToExpiry = expiresAt - now;
+
+              if (timeToExpiry > 3600) {
+                healthStatus += `- OAuth トークン: ✅ 正常 (有効期限まで${Math.floor(timeToExpiry / 3600)}時間)\n`;
+              } else if (timeToExpiry > 300) {
+                healthStatus += `- OAuth トークン: ⚠️ 期限間近 (有効期限まで${Math.floor(timeToExpiry / 60)}分)\n`;
+              } else {
+                healthStatus += `- OAuth トークン: ❌ 期限切れまたは間近\n`;
+              }
+            }
+          }
+
+          // メトリクス状態
+          const performanceMetrics = metricsCollector.getPerformanceMetrics();
+          const errorRate = performanceMetrics.requestCount > 0
+            ? (performanceMetrics.errorCount / performanceMetrics.requestCount) * 100
+            : 0;
+
+          const errorStatus = errorRate < 5 ? '✅ 正常' : errorRate < 15 ? '⚠️ 注意' : '❌ 異常';
+          healthStatus += `- エラー率: ${errorStatus} (${errorRate.toFixed(2)}%)\n`;
+
+          const avgResponseTime = performanceMetrics.averageResponseTime;
+          const responseStatus = avgResponseTime < 1000 ? '✅ 正常' : avgResponseTime < 3000 ? '⚠️ 遅延' : '❌ 異常';
+          healthStatus += `- 平均レスポンス時間: ${responseStatus} (${avgResponseTime.toFixed(2)}ms)\n`;
+
+          // システムリソース
+          healthStatus += '\n### システムリソース\n';
+          healthStatus += `- ヒープ使用量: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)}MB\n`;
+          healthStatus += `- 外部メモリ: ${(memoryUsage.external / 1024 / 1024).toFixed(2)}MB\n`;
+          healthStatus += `- Node.js バージョン: ${process.version}\n`;
+          healthStatus += `- プラットフォーム: ${process.platform} ${process.arch}\n`;
+        }
+
+        // 総合判定
+        healthStatus += '\n## 総合判定\n';
+        const overallStatus = authCheck.isAuthenticated && memoryUsageMB < 1000 ? '✅ 正常' : '⚠️ 要確認';
+        healthStatus += `システム状態: ${overallStatus}\n`;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: healthStatus,
+            },
+          ],
+        };
+      }
+
+      case 'security-audit': {
+        const severity = args?.severity as 'low' | 'medium' | 'high' | 'critical' | undefined;
+        const summaryOnly = args?.summary_only === true;
+
+        let auditReport = '# セキュリティ監査レポート\n\n';
+
+        if (summaryOnly) {
+          // サマリー情報のみ
+          const summary = SecurityAuditor.getLogsSummary();
+          auditReport += '## サマリー\n';
+          auditReport += `- 総監査ログ数: ${summary.total}\n`;
+          auditReport += `- 重要度別内訳:\n`;
+          auditReport += `  - Critical: ${summary.bySeverity.critical}\n`;
+          auditReport += `  - High: ${summary.bySeverity.high}\n`;
+          auditReport += `  - Medium: ${summary.bySeverity.medium}\n`;
+          auditReport += `  - Low: ${summary.bySeverity.low}\n\n`;
+
+          if (summary.recent.length > 0) {
+            auditReport += '## 最新の監査ログ（10件）\n';
+            summary.recent.forEach(log => {
+              const severityIcon = {
+                low: '🔵',
+                medium: '🟡',
+                high: '🟠',
+                critical: '🔴'
+              }[log.severity];
+              auditReport += `${severityIcon} [${log.timestamp}] ${log.event}\n`;
+            });
+          }
+        } else {
+          // 詳細情報
+          const logs = SecurityAuditor.getLogs(severity);
+
+          auditReport += '## 監査ログ詳細\n';
+          if (severity) {
+            auditReport += `フィルター: ${severity.toUpperCase()}レベル\n`;
+          }
+          auditReport += `取得件数: ${logs.length}件\n\n`;
+
+          if (logs.length > 0) {
+            logs.slice(-20).forEach(log => { // 最新20件
+              const severityIcon = {
+                low: '🔵',
+                medium: '🟡',
+                high: '🟠',
+                critical: '🔴'
+              }[log.severity];
+
+              auditReport += `${severityIcon} **${log.severity.toUpperCase()}** [${log.timestamp}]\n`;
+              auditReport += `イベント: ${log.event}\n`;
+              if (log.details && Object.keys(log.details).length > 0) {
+                auditReport += `詳細: ${JSON.stringify(log.details, null, 2)}\n`;
+              }
+              auditReport += '\n---\n\n';
+            });
+          } else {
+            auditReport += '該当する監査ログがありません。\n';
+          }
+        }
+
+        // セキュリティ推奨事項
+        const summary = SecurityAuditor.getLogsSummary();
+        if (summary.bySeverity.critical > 0 || summary.bySeverity.high > 0) {
+          auditReport += '\n## ⚠️ セキュリティ推奨事項\n';
+          if (summary.bySeverity.critical > 0) {
+            auditReport += '- **緊急**: Critical レベルのセキュリティイベントが検出されています。即座に対応してください。\n';
+          }
+          if (summary.bySeverity.high > 0) {
+            auditReport += '- **重要**: High レベルのセキュリティイベントが検出されています。早急に確認してください。\n';
+          }
+          auditReport += '- 定期的なセキュリティ監査の実施を推奨します。\n';
+          auditReport += '- 認証情報の定期的な更新を検討してください。\n';
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: auditReport,
+            },
+          ],
+        };
+      }
+
       case 'get-deals': {
         const authCheck = checkAuthenticationStatus();
         if (!authCheck.isAuthenticated) {
@@ -1570,21 +2035,17 @@ ${Object.entries(healthResults).map(([name, result]) =>
             offset: (offset || 0).toString(),
           });
 
-          // 取引一覧を取得
-          const response = await freeeClient.get(`/api/1/deals?${params.toString()}`);
+          // 取引一覧を取得（型安全なメソッドを使用）
+          const response = await freeeClient.getDeals({
+            company_id: companyId,
+            start_issue_date: startDate,
+            end_issue_date: endDate,
+            limit: 100,
+            offset: 0
+          });
 
-          // freee APIのレスポンス形式に対応
-          let deals: any[] = [];
-          if (response.data) {
-            const data = response.data as any;
-            if (Array.isArray(data)) {
-              deals = data;
-            } else if (data.deals && Array.isArray(data.deals)) {
-              deals = data.deals;
-            } else if (data.data && Array.isArray(data.data)) {
-              deals = data.data;
-            }
-          }
+          // 型安全なレスポンス処理
+          const deals = response.deals;
 
           return {
             content: [
@@ -1597,7 +2058,7 @@ ${Object.entries(healthResults).map(([name, result]) =>
 取得件数: ${deals.length}件
 
 取引データ:
-${deals.length > 0 ? JSON.stringify(deals, null, 2) : '取引データがありません'}`,
+${deals.length > 0 ? JSON.stringify(deals.slice(0, 3), null, 2) + (deals.length > 3 ? `\n... 他${deals.length - 3}件` : '') : `取引データがありません`}`,
               },
             ],
           };

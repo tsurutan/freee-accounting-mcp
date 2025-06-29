@@ -55,8 +55,8 @@ export function getDateRange(days: number = config.defaultDealsPeriodDays): {
   const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
   
   return {
-    startDate: startDate.toISOString().split('T')[0],
-    endDate: endDate.toISOString().split('T')[0],
+    startDate: startDate.toISOString().split('T')[0]!,
+    endDate: endDate.toISOString().split('T')[0]!,
   };
 }
 
@@ -72,7 +72,7 @@ export function getMonthDateRange(year: number, month: number): {
   const endDate = new Date(Date.UTC(year, month, 0)); // 翌月の0日 = 当月の最終日
 
   return {
-    startDate: startDate.toISOString().split('T')[0],
-    endDate: endDate.toISOString().split('T')[0],
+    startDate: startDate.toISOString().split('T')[0]!,
+    endDate: endDate.toISOString().split('T')[0]!,
   };
 }

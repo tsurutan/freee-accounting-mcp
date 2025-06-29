@@ -12,18 +12,129 @@ freee会計 MCP Serverは、Model Context Protocol (MCP) に準拠したサー�
 
 ## 認証
 
+### 認証方式
+
+#### 1. 直接トークン認証（推奨）
+環境変数`FREEE_ACCESS_TOKEN`でアクセストークンを直接指定する方式。
+
+**特徴:**
+- 設定が簡単で即座に利用開始可能
+- OAuth認証フローが不要
+- 固定の事業所IDでアクセス
+
+#### 2. OAuth 2.0 認証
+freee公式のOAuth 2.0認証フローを使用する方式。
+
+**特徴:**
+- freee公式認証フローに完全準拠
+- 事業所選択機能に対応
+- トークンの自動更新に対応
+- セキュリティが強化
+
 ### OAuth 2.0 認証フロー
 
 1. **認証URL生成**: `generate-auth-url` ツールを使用
+   - 事業所選択の有効/無効を制御可能
+   - CSRF対策のstateパラメータを自動生成
+
 2. **認証コード交換**: `exchange-auth-code` ツールを使用
+   - 認証コードをアクセストークンに交換
+   - 事業所情報（company_id, external_cid）を取得・保存
+
 3. **認証状態確認**: `check-auth-status` ツールを使用
+   - 認証状態と事業所情報を表示
+   - トークンの有効期限を確認
+
+### 事業所選択機能
+
+OAuth認証では以下の2つのモードを選択できます：
+
+#### 事業所選択モード（推奨）
+- `prompt=select_company`パラメータを使用
+- 認証時に特定の事業所を選択
+- 選択した事業所のみにアクセス可能
+- セキュリティが向上
+
+#### 全事業所アクセスモード
+- `prompt=select_company`パラメータを無効
+- ユーザーが所属する全ての事業所にアクセス可能
+- 複数事業所を管理する場合に便利
 
 ### セキュリティ機能
 
-- トークンの暗号化保存
-- 自動トークンリフレッシュ
-- セキュリティ監査ログ
-- レート制限対応
+- **トークンの暗号化保存**: AES-256-GCMによる暗号化
+- **自動トークンリフレッシュ**: 有効期限5分前に自動更新
+- **CSRF対策**: stateパラメータによる攻撃防止
+- **セキュリティ監査ログ**: 認証関連イベントの記録
+- **レート制限対応**: freee APIの制限に準拠
+- **詳細なエラーハンドリング**: freee API固有のエラー処理
+
+## エラーレスポンス
+
+### 認証エラー
+
+#### 401 Unauthorized
+```json
+{
+  "error": "認証に失敗しました",
+  "message": "クライアントIDまたはシークレットを確認してください",
+  "timestamp": "2024-12-29T10:00:00.000Z",
+  "retryable": false
+}
+```
+
+#### 403 Forbidden
+```json
+{
+  "error": "アクセス権限がありません",
+  "message": "指定されたリソースへのアクセス権限がありません",
+  "timestamp": "2024-12-29T10:00:00.000Z",
+  "retryable": false
+}
+```
+
+### レート制限エラー
+
+#### 429 Too Many Requests
+```json
+{
+  "error": "レート制限に達しました",
+  "message": "しばらく待ってから再試行してください",
+  "timestamp": "2024-12-29T10:00:00.000Z",
+  "retryable": true
+}
+```
+
+### サーバーエラー
+
+#### 500 Internal Server Error
+```json
+{
+  "error": "freeeサーバーでエラーが発生しました",
+  "message": "一時的なエラーです。しばらく待ってから再試行してください",
+  "timestamp": "2024-12-29T10:00:00.000Z",
+  "retryable": true
+}
+```
+
+### freee API固有エラー
+```json
+{
+  "error": "API エラー",
+  "message": "指定されたパラメータが不正です: amount は必須項目です",
+  "timestamp": "2024-12-29T10:00:00.000Z",
+  "retryable": false,
+  "freee_errors": [
+    {
+      "type": "validation_error",
+      "resource_name": "deal",
+      "field": "amount",
+      "code": "required",
+      "message": "amount は必須項目です"
+    }
+  ]
+}
+```
 
 ## Resources
 

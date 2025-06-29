@@ -22,7 +22,7 @@ export class TokenEncryption {
     this.algorithm = config.algorithm || 'aes-256-gcm';
     this.keyLength = config.keyLength || 32;
     this.ivLength = config.ivLength || 16;
-    
+
     // マシン固有のキーを生成
     this.key = this.generateMachineKey();
   }
@@ -45,10 +45,10 @@ export class TokenEncryption {
     try {
       const iv = crypto.randomBytes(this.ivLength);
       const cipher = crypto.createCipher(this.algorithm, this.key);
-      
+
       let encrypted = cipher.update(data, 'utf8', 'hex');
       encrypted += cipher.final('hex');
-      
+
       // IVと暗号化データを結合
       return iv.toString('hex') + ':' + encrypted;
     } catch (error) {
@@ -70,7 +70,7 @@ export class TokenEncryption {
 
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return decrypted;
     } catch (error) {
       throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -97,17 +97,17 @@ export class SecurityHeaders {
 
   static sanitizeHeaders(headers: Record<string, any>): Record<string, string> {
     const sanitized: Record<string, string> = {};
-    
+
     for (const [key, value] of Object.entries(headers)) {
       // ヘッダー名と値をサニタイズ
       const sanitizedKey = key.replace(/[^\w-]/g, '');
       const sanitizedValue = String(value).replace(/[\r\n]/g, '');
-      
+
       if (sanitizedKey && sanitizedValue) {
         sanitized[sanitizedKey] = sanitizedValue;
       }
     }
-    
+
     return sanitized;
   }
 }
@@ -160,32 +160,32 @@ export class RateLimitValidator {
   static checkRateLimit(identifier: string): boolean {
     const now = Date.now();
     const windowStart = now - this.WINDOW_SIZE;
-    
+
     // 現在のリクエスト履歴を取得
     const requests = this.requests.get(identifier) || [];
-    
+
     // ウィンドウ外のリクエストを削除
     const validRequests = requests.filter(timestamp => timestamp > windowStart);
-    
+
     // レート制限チェック
     if (validRequests.length >= this.MAX_REQUESTS) {
       return false;
     }
-    
+
     // 新しいリクエストを記録
     validRequests.push(now);
     this.requests.set(identifier, validRequests);
-    
+
     return true;
   }
 
   static getRemainingRequests(identifier: string): number {
     const now = Date.now();
     const windowStart = now - this.WINDOW_SIZE;
-    
+
     const requests = this.requests.get(identifier) || [];
     const validRequests = requests.filter(timestamp => timestamp > windowStart);
-    
+
     return Math.max(0, this.MAX_REQUESTS - validRequests.length);
   }
 }
@@ -236,5 +236,28 @@ export class SecurityAuditor {
 
   static clearLogs(): void {
     this.logs = [];
+  }
+
+  static getLogsSummary(): {
+    total: number;
+    bySeverity: Record<SecurityAuditLog['severity'], number>;
+    recent: SecurityAuditLog[];
+  } {
+    const bySeverity = {
+      low: 0,
+      medium: 0,
+      high: 0,
+      critical: 0,
+    };
+
+    this.logs.forEach(log => {
+      bySeverity[log.severity]++;
+    });
+
+    return {
+      total: this.logs.length,
+      bySeverity,
+      recent: this.logs.slice(-10),
+    };
   }
 }

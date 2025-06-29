@@ -18,7 +18,7 @@ describe('Types', () => {
   describe('FreeeError', () => {
     it('should create error with message and status code', () => {
       const error = new FreeeError('Test error', 400);
-      
+
       expect(error.message).toBe('Test error');
       expect(error.statusCode).toBe(400);
       expect(error.name).toBe('FreeeError');
@@ -35,9 +35,9 @@ describe('Types', () => {
           message: 'Amount is required',
         },
       ];
-      
+
       const error = new FreeeError('Validation error', 422, errors);
-      
+
       expect(error.message).toBe('Validation error');
       expect(error.statusCode).toBe(422);
       expect(error.errors).toEqual(errors);
@@ -127,6 +127,36 @@ describe('Types', () => {
 
       expect(tokens.access_token).toBe('test_access_token');
       expect(tokens.expires_in).toBe(3600);
+    });
+
+    it('should accept tokens object with company information', () => {
+      const tokens: OAuthTokens = {
+        access_token: 'test_access_token',
+        refresh_token: 'test_refresh_token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: 'read write',
+        created_at: Math.floor(Date.now() / 1000),
+        company_id: '123456',
+        external_cid: 'ext_123456',
+      };
+
+      expect(tokens.company_id).toBe('123456');
+      expect(tokens.external_cid).toBe('ext_123456');
+    });
+
+    it('should accept tokens object without optional company information', () => {
+      const tokens: OAuthTokens = {
+        access_token: 'test_access_token',
+        refresh_token: 'test_refresh_token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: 'read write',
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      expect(tokens.company_id).toBeUndefined();
+      expect(tokens.external_cid).toBeUndefined();
     });
   });
 

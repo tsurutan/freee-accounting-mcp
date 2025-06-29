@@ -12,6 +12,43 @@ export interface FreeeApiResponse<T> {
   };
 }
 
+// freee API 具体的なレスポンス型
+export interface FreeeCompaniesResponse {
+  companies: Company[];
+}
+
+export interface FreeeDealsResponse {
+  deals: Deal[];
+  meta: {
+    total_count: number;
+  };
+}
+
+export interface FreeeAccountItemsResponse {
+  account_items: AccountItem[];
+}
+
+export interface FreeePartnersResponse {
+  partners: Partner[];
+}
+
+export interface FreeeSectionsResponse {
+  sections: Section[];
+}
+
+export interface FreeeItemsResponse {
+  items: Item[];
+}
+
+export interface FreeeTagsResponse {
+  tags: Tag[];
+}
+
+export interface FreeeTrialBalanceResponse {
+  trial_bs: TrialBalance;
+  trial_pl: TrialBalance;
+}
+
 // 事業所型
 export interface Company {
   id: number;
@@ -442,6 +479,8 @@ export interface OAuthTokens {
   expires_in: number;
   scope: string;
   created_at: number;
+  company_id?: string;
+  external_cid?: string;
 }
 
 export interface OAuthTokenResponse {
@@ -450,6 +489,8 @@ export interface OAuthTokenResponse {
   token_type: string;
   expires_in: number;
   scope: string;
+  company_id?: string;
+  external_cid?: string;
 }
 
 export interface AuthState {

@@ -23,14 +23,15 @@ describe('FreeeOAuthClient', () => {
   });
 
   describe('generateAuthUrl', () => {
-    it('should generate correct auth URL without state', () => {
+    it('should generate correct auth URL without state (company selection enabled)', () => {
       const authUrl = oauthClient.generateAuthUrl();
 
-      expect(authUrl).toContain('https://api.freee.co.jp/oauth/authorize');
+      expect(authUrl).toContain('https://accounts.secure.freee.co.jp/public_api/authorize');
       expect(authUrl).toContain('client_id=test_client_id');
       expect(authUrl).toContain('redirect_uri=http%3A//localhost%3A3000/callback');
       expect(authUrl).toContain('response_type=code');
-      expect(authUrl).toContain('scope=read%20write');
+      expect(authUrl).toContain('prompt=select_company');
+      expect(authUrl).toContain('state='); // ランダムなstateが生成される
     });
 
     it('should generate correct auth URL with state', () => {
@@ -38,6 +39,21 @@ describe('FreeeOAuthClient', () => {
       const authUrl = oauthClient.generateAuthUrl(state);
 
       expect(authUrl).toContain('state=test_state_123');
+      expect(authUrl).toContain('prompt=select_company');
+    });
+
+    it('should generate auth URL without company selection when disabled', () => {
+      const authUrl = oauthClient.generateAuthUrl(undefined, false);
+
+      expect(authUrl).toContain('https://accounts.secure.freee.co.jp/public_api/authorize');
+      expect(authUrl).not.toContain('prompt=select_company');
+      expect(authUrl).toContain('state='); // ランダムなstateが生成される
+    });
+
+    it('should generate auth URL with company selection when explicitly enabled', () => {
+      const authUrl = oauthClient.generateAuthUrl(undefined, true);
+
+      expect(authUrl).toContain('prompt=select_company');
     });
   });
 
@@ -68,6 +84,25 @@ describe('FreeeOAuthClient', () => {
       expect(authState.isAuthenticated).toBe(true);
       expect(authState.tokens).toEqual(tokens);
       expect(authState.expiresAt).toBe(tokens.created_at + tokens.expires_in);
+    });
+
+    it('should set tokens with company information', () => {
+      const tokens = {
+        access_token: 'test_access_token',
+        refresh_token: 'test_refresh_token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: 'read write',
+        created_at: Math.floor(Date.now() / 1000),
+        company_id: '123456',
+        external_cid: 'ext_123456',
+      };
+
+      oauthClient.setTokens(tokens);
+
+      expect(oauthClient.getCompanyId()).toBe('123456');
+      expect(oauthClient.getExternalCid()).toBe('ext_123456');
+      expect(oauthClient.isCompanySelectionEnabled()).toBe(true);
     });
   });
 
@@ -139,6 +174,50 @@ describe('FreeeOAuthClient', () => {
     });
   });
 
+  describe('company information methods', () => {
+    it('should return null when not authenticated', () => {
+      expect(oauthClient.getCompanyId()).toBeNull();
+      expect(oauthClient.getExternalCid()).toBeNull();
+      expect(oauthClient.isCompanySelectionEnabled()).toBe(false);
+    });
+
+    it('should return company information when authenticated', () => {
+      const tokens = {
+        access_token: 'test_access_token',
+        refresh_token: 'test_refresh_token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: 'read write',
+        created_at: Math.floor(Date.now() / 1000),
+        company_id: '123456',
+        external_cid: 'ext_123456',
+      };
+
+      oauthClient.setTokens(tokens);
+
+      expect(oauthClient.getCompanyId()).toBe('123456');
+      expect(oauthClient.getExternalCid()).toBe('ext_123456');
+      expect(oauthClient.isCompanySelectionEnabled()).toBe(true);
+    });
+
+    it('should handle tokens without company information', () => {
+      const tokens = {
+        access_token: 'test_access_token',
+        refresh_token: 'test_refresh_token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        scope: 'read write',
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      oauthClient.setTokens(tokens);
+
+      expect(oauthClient.getCompanyId()).toBeNull();
+      expect(oauthClient.getExternalCid()).toBeNull();
+      expect(oauthClient.isCompanySelectionEnabled()).toBe(false);
+    });
+  });
+
   describe('clearAuth', () => {
     it('should clear authentication state', () => {
       const tokens = {
@@ -159,6 +238,11 @@ describe('FreeeOAuthClient', () => {
       expect(authState.isAuthenticated).toBe(false);
       expect(authState.tokens).toBeUndefined();
       expect(authState.expiresAt).toBeUndefined();
+
+      // Company information should also be cleared
+      expect(oauthClient.getCompanyId()).toBeNull();
+      expect(oauthClient.getExternalCid()).toBeNull();
+      expect(oauthClient.isCompanySelectionEnabled()).toBe(false);
     });
   });
 });

@@ -3,7 +3,19 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { FreeeApiResponse, FreeeError } from '@mcp-server/types';
+import {
+  FreeeApiResponse,
+  FreeeError,
+  FreeeCompaniesResponse,
+  FreeeDealsResponse,
+  FreeeAccountItemsResponse,
+  FreeePartnersResponse,
+  FreeeSectionsResponse,
+  FreeeItemsResponse,
+  FreeeTagsResponse,
+  FreeeTrialBalanceResponse,
+  Deal
+} from '@mcp-server/types';
 import { FreeeOAuthClient } from './auth';
 import { logger } from './logger';
 import { MemoryCache, CacheKeyGenerator } from './cache';
@@ -111,7 +123,83 @@ export class FreeeClient {
       },
     });
 
-    // リクエストインターセプター
+    // デバッグ用: axiosリクエスト/レスポンスのログ出力（freee API）
+    // DEBUG_FREEE_API=true または DEBUG_AXIOS=true で有効化
+    if (process.env.DEBUG_FREEE_API === 'true' || process.env.DEBUG_AXIOS === 'true') {
+      // デバッグ用リクエストインターセプター
+      this.client.interceptors.request.use(
+        (config) => {
+          console.error('\n📡 [FREEE API REQUEST]');
+          console.error('URL:', config.url);
+          console.error('Method:', config.method?.toUpperCase());
+
+          // アクセストークンをマスクしてヘッダーを表示
+          const maskedHeaders = { ...config.headers };
+          if (maskedHeaders.Authorization && typeof maskedHeaders.Authorization === 'string') {
+            maskedHeaders.Authorization = maskedHeaders.Authorization.replace(/Bearer .+/, 'Bearer ***');
+          }
+          console.error('Headers:', JSON.stringify(maskedHeaders, null, 2));
+
+          if (config.params) {
+            console.error('Params:', JSON.stringify(config.params, null, 2));
+          }
+          if (config.data) {
+            console.error('Data:', typeof config.data === 'string' ? config.data : JSON.stringify(config.data, null, 2));
+          }
+          console.error('---');
+          return config;
+        },
+        (error) => {
+          console.error('❌ [FREEE API REQUEST ERROR]', error);
+          return Promise.reject(error);
+        }
+      );
+
+      // デバッグ用レスポンスインターセプター
+      this.client.interceptors.response.use(
+        (response) => {
+          console.error('\n📡 [FREEE API RESPONSE]');
+          console.error('Status:', response.status, response.statusText);
+          console.error('URL:', response.config?.url);
+          console.error('Headers:', JSON.stringify(response.headers, null, 2));
+
+          // レスポンスデータが大きい場合は一部のみ表示
+          let displayData = response.data;
+          if (typeof displayData === 'object' && displayData !== null) {
+            const dataStr = JSON.stringify(displayData);
+            if (dataStr.length > 2000) {
+              if (Array.isArray(displayData)) {
+                displayData = displayData.slice(0, 3).concat([`...truncated (${displayData.length} total items)`]);
+              } else {
+                displayData = {
+                  ...displayData,
+                  _debug_info: `[Data truncated - ${dataStr.length} characters]`,
+                };
+              }
+            }
+          }
+          console.error('Data:', JSON.stringify(displayData, null, 2));
+          console.error('---\n');
+          return response;
+        },
+        (error) => {
+          console.error('\n❌ [FREEE API RESPONSE ERROR]');
+          console.error('Status:', error.response?.status, error.response?.statusText);
+          console.error('URL:', error.config?.url);
+          if (error.response?.headers) {
+            console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+          }
+          if (error.response?.data) {
+            console.error('Error Data:', JSON.stringify(error.response.data, null, 2));
+          }
+          console.error('Message:', error.message);
+          console.error('---\n');
+          return Promise.reject(error);
+        }
+      );
+    }
+
+    // リクエストインターセプター（認証トークン設定）
     this.client.interceptors.request.use(async (config) => {
       let token = this.accessToken;
 
@@ -128,31 +216,17 @@ export class FreeeClient {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-
-
       return config;
     });
 
-    // レスポンスインターセプター
+    // レスポンスインターセプター（レート制限とエラーハンドリング）
     this.client.interceptors.response.use(
       (response) => {
-        // デバッグ用ログ（一時的）
-        console.error('FreeeClient Response:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-          data_type: typeof response.data,
-          data_keys: response.data ? Object.keys(response.data) : null,
-          data_sample: response.data
-        });
-
         // レート制限情報を更新
         this.rateLimiter.updateRateLimit(response.headers);
         return response;
       },
       (error) => {
-
-
         // レート制限情報を更新（エラーレスポンスからも）
         if (error.response?.headers) {
           this.rateLimiter.updateRateLimit(error.response.headers);
@@ -202,7 +276,6 @@ export class FreeeClient {
         logger.debug('Data cached', { url, cacheKey });
       }
 
-      logger.info('response data=', response.data);
       return response.data;
     }, `GET ${url}`);
   }
@@ -256,6 +329,63 @@ export class FreeeClient {
     // 実際の実装では正規表現などを使用
     logger.info('Cache invalidation requested', { pattern });
     this.clearCache(); // 簡易実装として全削除
+  }
+
+  // 型安全なAPIメソッド
+  async getCompanies(): Promise<FreeeCompaniesResponse> {
+    return this.get<FreeeCompaniesResponse>('/api/1/companies');
+  }
+
+  async getDeals(params: {
+    company_id: number;
+    start_issue_date?: string;
+    end_issue_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<FreeeDealsResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.start_issue_date) searchParams.append('start_issue_date', params.start_issue_date);
+    if (params.end_issue_date) searchParams.append('end_issue_date', params.end_issue_date);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.offset) searchParams.append('offset', params.offset.toString());
+
+    return this.get<FreeeDealsResponse>(`/api/1/deals?${searchParams.toString()}`);
+  }
+
+  async getAccountItems(companyId: number): Promise<FreeeAccountItemsResponse> {
+    return this.get<FreeeAccountItemsResponse>(`/api/1/account_items?company_id=${companyId}`);
+  }
+
+  async getPartners(companyId: number): Promise<FreeePartnersResponse> {
+    return this.get<FreeePartnersResponse>(`/api/1/partners?company_id=${companyId}`);
+  }
+
+  async getSections(companyId: number): Promise<FreeeSectionsResponse> {
+    return this.get<FreeeSectionsResponse>(`/api/1/sections?company_id=${companyId}`);
+  }
+
+  async getItems(companyId: number): Promise<FreeeItemsResponse> {
+    return this.get<FreeeItemsResponse>(`/api/1/items?company_id=${companyId}`);
+  }
+
+  async getTags(companyId: number): Promise<FreeeTagsResponse> {
+    return this.get<FreeeTagsResponse>(`/api/1/tags?company_id=${companyId}`);
+  }
+
+  async getTrialBalance(params: {
+    company_id: number;
+    fiscal_year?: number;
+    start_month?: number;
+    end_month?: number;
+  }): Promise<FreeeTrialBalanceResponse> {
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.fiscal_year) searchParams.append('fiscal_year', params.fiscal_year.toString());
+    if (params.start_month) searchParams.append('start_month', params.start_month.toString());
+    if (params.end_month) searchParams.append('end_month', params.end_month.toString());
+
+    return this.get<FreeeTrialBalanceResponse>(`/api/1/trial_balance?${searchParams.toString()}`);
   }
 
   private async executeWithRetry<T>(

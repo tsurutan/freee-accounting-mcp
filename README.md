@@ -113,7 +113,11 @@ FREEE_REDIRECT_URI=your_redirect_uri
 FREEE_API_BASE_URL=https://api.freee.co.jp
 ```
 
-**注意**: `FREEE_ACCESS_TOKEN`が設定されている場合は、直接トークン認証が優先されます。
+**注意**:
+- `FREEE_ACCESS_TOKEN`が設定されている場合は、直接トークン認証が優先されます。
+- OAuth認証では事業所選択機能を制御できます。
+- 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
+- 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
 
 ## 使用方法
 
@@ -135,12 +139,54 @@ npm run build && node apps/freee-accounting/dist/index.js
 
 #### OAuth認証の場合
 
-1. freeeアプリケーションを作成してClient IDとClient Secretを取得
-2. 環境変数を設定
-3. MCP Serverを起動
-4. `generate-auth-url`ツールで認証URLを生成
-5. ブラウザで認証を実行
-6. `exchange-auth-code`ツールで認証コードをトークンに交換
+1. **freeeアプリケーションの作成**
+   - [freeeアプリストアの開発者向けアプリ一覧画面](https://app.secure.freee.co.jp/developers/applications)にアクセス
+   - 「新規追加」をクリックしてアプリケーションを作成
+   - アプリ名と概要を入力
+   - Client IDとClient Secretを取得
+   - コールバックURLを設定（例: `http://localhost:3000/callback`）
+
+2. **環境変数を設定**
+   ```bash
+   export FREEE_CLIENT_ID="your_client_id"
+   export FREEE_CLIENT_SECRET="your_client_secret"
+   export FREEE_REDIRECT_URI="http://localhost:3000/callback"
+   ```
+
+3. **MCP Serverを起動**
+   ```bash
+   npm run build && node apps/freee-accounting/dist/index.js
+   ```
+
+4. **OAuth認証フローの実行**
+
+   a. 認証URLを生成:
+   ```bash
+   # 事業所選択を有効にして認証URL生成（推奨）
+   generate-auth-url --enable_company_selection=true
+
+   # または事業所選択を無効にして全事業所アクセス
+   generate-auth-url --enable_company_selection=false
+   ```
+
+   b. 生成されたURLにブラウザでアクセス:
+   - freeeアカウントでログイン
+   - 事業所を選択（enable_company_selection=trueの場合）
+   - アプリケーションのアクセス権限を確認
+   - 「許可する」をクリック
+
+   c. 認証コードを取得:
+   - リダイレクトURLのcodeパラメータから認証コードを取得
+
+   d. 認証コードをアクセストークンに交換:
+   ```bash
+   exchange-auth-code --code="取得した認証コード"
+   ```
+
+5. **認証状態の確認**
+   ```bash
+   check-auth-status
+   ```
 
 ### 基本的な使用例
 
@@ -235,6 +281,21 @@ npm run debug
    - ブラウザで表示されたURL（http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=...）にアクセス
    - サーバーとの基本接続を確認
    - 機能ネゴシエーションをチェック
+
+2. **HTTPリクエスト/レスポンスのデバッグ**
+   ```bash
+   # axiosのリクエスト/レスポンスをコンソールに表示
+   DEBUG_AXIOS=true npm run debug
+
+   # または環境変数を設定してから実行
+   export DEBUG_AXIOS=true
+   npm run debug
+   ```
+
+   デバッグモードでは以下の情報が表示されます：
+   - 🔐 OAuth認証リクエスト/レスポンス（機密情報はマスク）
+   - 📡 freee APIリクエスト/レスポンス（アクセストークンはマスク）
+   - ❌ エラー詳細情報
 
 2. **Inspector GUI での操作**
 

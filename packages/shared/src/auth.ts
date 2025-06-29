@@ -26,12 +26,77 @@ export class FreeeOAuthClient {
     this.tokenFilePath = path.join(os.homedir(), '.freee-mcp-tokens.json');
 
     this.httpClient = axios.create({
-      baseURL: config.baseUrl || 'https://api.freee.co.jp',
+      baseURL: 'https://accounts.secure.freee.co.jp',
       timeout: 30000,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
+
+    // デバッグ用: axiosリクエスト/レスポンスのログ出力（OAuth認証）
+    if (process.env.DEBUG_AXIOS === 'true') {
+      // リクエストインターセプター
+      this.httpClient.interceptors.request.use(
+        (config) => {
+          console.log('\n🔐 [OAUTH REQUEST]');
+          console.log('URL:', config.url);
+          console.log('Method:', config.method?.toUpperCase());
+          console.log('Headers:', JSON.stringify(config.headers, null, 2));
+          if (config.params) {
+            console.log('Params:', JSON.stringify(config.params, null, 2));
+          }
+          if (config.data) {
+            // OAuth認証データは機密情報なので一部マスク
+            const maskedData = typeof config.data === 'string'
+              ? config.data.replace(/client_secret=[^&]+/g, 'client_secret=***')
+                          .replace(/refresh_token=[^&]+/g, 'refresh_token=***')
+                          .replace(/code=[^&]+/g, 'code=***')
+              : config.data;
+            console.log('Data:', maskedData);
+          }
+          console.log('---');
+          return config;
+        },
+        (error) => {
+          console.error('❌ [OAUTH REQUEST ERROR]', error);
+          return Promise.reject(error);
+        }
+      );
+
+      // レスポンスインターセプター
+      this.httpClient.interceptors.response.use(
+        (response) => {
+          console.log('\n🔐 [OAUTH RESPONSE]');
+          console.log('Status:', response.status, response.statusText);
+          console.log('URL:', response.config?.url);
+          console.log('Headers:', JSON.stringify(response.headers, null, 2));
+
+          // OAuth認証レスポンスは機密情報なので一部マスク
+          const maskedData = response.data ? {
+            ...response.data,
+            access_token: response.data.access_token ? '***' + response.data.access_token.slice(-4) : undefined,
+            refresh_token: response.data.refresh_token ? '***' + response.data.refresh_token.slice(-4) : undefined,
+          } : response.data;
+          console.log('Data:', JSON.stringify(maskedData, null, 2));
+          console.log('---\n');
+          return response;
+        },
+        (error) => {
+          console.error('\n❌ [OAUTH RESPONSE ERROR]');
+          console.error('Status:', error.response?.status, error.response?.statusText);
+          console.error('URL:', error.config?.url);
+          if (error.response?.headers) {
+            console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+          }
+          if (error.response?.data) {
+            console.error('Error Data:', JSON.stringify(error.response.data, null, 2));
+          }
+          console.error('Message:', error.message);
+          console.error('---\n');
+          return Promise.reject(error);
+        }
+      );
+    }
 
     // 保存されたトークンを読み込み
     this.loadTokensFromFile();
@@ -40,19 +105,35 @@ export class FreeeOAuthClient {
   /**
    * 認証URLを生成
    */
-  generateAuthUrl(state?: string): string {
+  generateAuthUrl(state?: string, enableCompanySelection: boolean = true): string {
+    // stateが指定されていない場合はランダムな文字列を生成（CSRF対策）
+    const stateValue = state || this.generateRandomState();
+
     const params = new URLSearchParams({
+      response_type: 'code',
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
-      response_type: 'code',
-      scope: 'read write',
+      state: stateValue,
     });
 
-    if (state) {
-      params.append('state', state);
+    // 事業所選択機能の制御
+    if (enableCompanySelection) {
+      params.append('prompt', 'select_company');
     }
 
-    return `${this.config.baseUrl || 'https://api.freee.co.jp'}/oauth/authorize?${params.toString()}`;
+    return `https://accounts.secure.freee.co.jp/public_api/authorize?${params.toString()}`;
+  }
+
+  /**
+   * CSRF対策用のランダムなstate文字列を生成
+   */
+  private generateRandomState(): string {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   }
 
   /**
@@ -69,8 +150,13 @@ export class FreeeOAuthClient {
       });
 
       const response = await this.httpClient.post<OAuthTokenResponse>(
-        '/oauth/token',
-        params.toString()
+        '/public_api/token',
+        params.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
       );
 
       const tokens: OAuthTokens = {
@@ -81,10 +167,13 @@ export class FreeeOAuthClient {
       this.setTokens(tokens);
       return tokens;
     } catch (error: any) {
+      const errorMessage = this.getDetailedErrorMessage(error, 'Failed to exchange code for tokens');
       throw new FreeeError(
-        'Failed to exchange code for tokens',
+        errorMessage,
         error.response?.status || 500,
-        error.response?.data?.errors
+        error.response?.data?.errors,
+        error,
+        error.response?.headers?.['x-request-id']
       );
     }
   }
@@ -102,8 +191,13 @@ export class FreeeOAuthClient {
       });
 
       const response = await this.httpClient.post<OAuthTokenResponse>(
-        '/oauth/token',
-        params.toString()
+        '/public_api/token',
+        params.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
       );
 
       const tokens: OAuthTokens = {
@@ -114,10 +208,13 @@ export class FreeeOAuthClient {
       this.setTokens(tokens);
       return tokens;
     } catch (error: any) {
+      const errorMessage = this.getDetailedErrorMessage(error, 'Failed to refresh tokens');
       throw new FreeeError(
-        'Failed to refresh tokens',
+        errorMessage,
         error.response?.status || 500,
-        error.response?.data?.errors
+        error.response?.data?.errors,
+        error,
+        error.response?.headers?.['x-request-id']
       );
     }
   }
@@ -127,6 +224,73 @@ export class FreeeOAuthClient {
    */
   getAuthState(): AuthState {
     return { ...this.authState };
+  }
+
+  /**
+   * 認証されている事業所IDを取得
+   */
+  getCompanyId(): string | null {
+    if (!this.authState.isAuthenticated || !this.authState.tokens) {
+      return null;
+    }
+    return this.authState.tokens.company_id || null;
+  }
+
+  /**
+   * 外部連携IDを取得
+   */
+  getExternalCid(): string | null {
+    if (!this.authState.isAuthenticated || !this.authState.tokens) {
+      return null;
+    }
+    return this.authState.tokens.external_cid || null;
+  }
+
+  /**
+   * 事業所選択が有効かどうかを判定
+   */
+  isCompanySelectionEnabled(): boolean {
+    return !!this.getCompanyId();
+  }
+
+  /**
+   * 詳細なエラーメッセージを生成
+   */
+  private getDetailedErrorMessage(error: any, defaultMessage: string): string {
+    if (!error.response) {
+      return `${defaultMessage}: ネットワークエラーまたはサーバーに接続できません`;
+    }
+
+    const status = error.response.status;
+    const data = error.response.data;
+
+    // freee API固有のエラーメッセージ
+    if (data?.errors && Array.isArray(data.errors)) {
+      const errorMessages = data.errors.map((err: any) => err.message || err.code).join(', ');
+      return `${defaultMessage}: ${errorMessages}`;
+    }
+
+    // HTTPステータスコード別のメッセージ
+    switch (status) {
+      case 400:
+        return `${defaultMessage}: リクエストパラメータが不正です`;
+      case 401:
+        return `${defaultMessage}: 認証に失敗しました。クライアントIDまたはシークレットを確認してください`;
+      case 403:
+        return `${defaultMessage}: アクセス権限がありません`;
+      case 404:
+        return `${defaultMessage}: 指定されたリソースが見つかりません`;
+      case 429:
+        return `${defaultMessage}: レート制限に達しました。しばらく待ってから再試行してください`;
+      case 500:
+        return `${defaultMessage}: freeeサーバーでエラーが発生しました`;
+      case 502:
+      case 503:
+      case 504:
+        return `${defaultMessage}: freeeサーバーが一時的に利用できません`;
+      default:
+        return `${defaultMessage}: HTTPエラー ${status}`;
+    }
   }
 
   /**

@@ -377,6 +377,129 @@ NODE_ENV=development
 6. **データ整合性**: CRUD操作後のデータ確認
 7. **並行処理**: 複数の操作を同時実行してテスト
 
+## HTTPリクエスト/レスポンスのデバッグ
+
+### 基本的な使用方法
+
+axiosのリクエストとレスポンスをコンソールに表示してデバッグできます。
+
+```bash
+# デバッグモードでMCP Inspectorを起動
+DEBUG_AXIOS=true npm run debug
+
+# または環境変数を設定してから実行
+export DEBUG_AXIOS=true
+npm run debug
+```
+
+### デバッグ出力の種類
+
+#### 1. OAuth認証リクエスト/レスポンス
+```
+🔐 [OAUTH REQUEST]
+URL: /public_api/token
+Method: POST
+Headers: {
+  "Content-Type": "application/x-www-form-urlencoded"
+}
+Data: grant_type=authorization_code&client_id=***&client_secret=***&code=***&redirect_uri=...
+---
+
+🔐 [OAUTH RESPONSE]
+Status: 200 OK
+URL: /public_api/token
+Data: {
+  "access_token": "***1234",
+  "refresh_token": "***5678",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "scope": "read write",
+  "company_id": "123456"
+}
+---
+```
+
+#### 2. freee APIリクエスト/レスポンス
+```
+📡 [FREEE API REQUEST]
+URL: /api/1/companies
+Method: GET
+Headers: {
+  "Content-Type": "application/json",
+  "Authorization": "Bearer ***",
+  "X-Api-Version": "2020-06-15"
+}
+---
+
+📡 [FREEE API RESPONSE]
+Status: 200 OK
+URL: /api/1/companies
+Data: {
+  "companies": [
+    {
+      "id": 123456,
+      "name": "サンプル会社",
+      "role": "admin"
+    }
+  ]
+}
+---
+```
+
+#### 3. エラー情報
+```
+❌ [FREEE API RESPONSE ERROR]
+Status: 401 Unauthorized
+URL: /api/1/companies
+Error Data: {
+  "status_code": 401,
+  "errors": [
+    {
+      "type": "authentication_error",
+      "message": "Invalid access token"
+    }
+  ]
+}
+Message: Request failed with status code 401
+---
+```
+
+### セキュリティ機能
+
+デバッグ出力では機密情報が自動的にマスクされます：
+
+- **アクセストークン**: `Bearer ***` として表示
+- **リフレッシュトークン**: 末尾4文字のみ表示（`***1234`）
+- **クライアントシークレット**: `***` として表示
+- **認証コード**: `***` として表示
+
+### 大きなレスポンスの処理
+
+レスポンスデータが2000文字を超える場合、自動的に切り詰められます：
+
+```json
+{
+  "deals": [
+    { "id": 1, "amount": 1000 },
+    { "id": 2, "amount": 2000 },
+    { "id": 3, "amount": 3000 },
+    "...truncated (150 total items)"
+  ]
+}
+```
+
+### デバッグのベストプラクティス
+
+1. **本番環境では無効化**: `DEBUG_AXIOS=true` は開発時のみ使用
+2. **機密情報の確認**: ログに機密情報が含まれていないか確認
+3. **パフォーマンス**: 大量のリクエストがある場合はデバッグを無効化
+4. **ログファイル**: 必要に応じてログをファイルにリダイレクト
+
+```bash
+# ログをファイルに保存
+DEBUG_AXIOS=true npm run debug 2>&1 | tee debug.log
+```
+
 ## 参考リンク
 
 - [MCP Inspector 公式ドキュメント](https://modelcontextprotocol.io/docs/tools/inspector)
