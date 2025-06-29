@@ -1,146 +1,347 @@
-# freee API OAuth認証フロー対応 TODO
+# freee-accounting MCP Server リファクタリング TODO
 
-## 概要
-freee APIの公式認証フロー（https://developer.freee.co.jp/startguide/starting-api）に沿って、client_idとclient_secretを使用したOAuth 2.0認証フローに完全対応する。
+## 現状の問題点
 
-## 現在の状況
-- ✅ 直接トークン認証（FREEE_ACCESS_TOKEN）は実装済み
-- ✅ OAuth認証の基本実装は存在するが、freee公式フローに完全準拠していない
-- ❌ 認証URLのエンドポイントが間違っている（/oauth/token → /public_api/token）
-- ❌ 認証URLの生成が公式仕様に準拠していない
-- ❌ 事業所選択機能（prompt=select_company）が未実装
+- **単一ファイルが2400行超**: index.tsが巨大すぎて保守性が低い
+- **DRY違反**: 認証チェック、エラーハンドリング、レスポンス生成の重複コード
+- **SRP違反**: 1つのファイルで環境変数読み込み、認証、API呼び出し、ツール実行、プロンプト処理を担当
+- **OCP違反**: 新しいツールやリソースを追加する際に既存コードの修正が必要
+- **ISP違反**: 大きなインターフェースで不要な依存関係
+- **DIP違反**: 具体的な実装に依存している部分が多い
 
-## タスク一覧
+## 推奨ライブラリ・ツール
 
-### 1. OAuth認証エンドポイントの修正
-- [x] **1.1** `packages/shared/src/auth.ts`の修正
-  - [x] 認証URLを `https://accounts.secure.freee.co.jp/public_api/authorize` に変更
-  - [x] トークン取得URLを `https://accounts.secure.freee.co.jp/public_api/token` に変更
-  - [x] リフレッシュトークンURLを `https://accounts.secure.freee.co.jp/public_api/token` に変更
+### 依存性注入・IoC Container
+- **inversify** - TypeScript対応の軽量DIコンテナ
+  - 依存関係の管理とテスタビリティ向上
+  - デコレーターベースの設定
+  - 循環依存の検出
 
-### 2. 認証URL生成の修正
-- [x] **2.1** `generateAuthUrl`メソッドの修正
-  - [x] パラメータを公式仕様に準拠
-    - `response_type=code`
-    - `client_id={client_id}`
-    - `redirect_uri={encoded_callback_url}`
-    - `state={random_string}`
-    - `prompt=select_company` （事業所選択を有効化）
-  - [x] stateパラメータのCSRF対策実装
-  - [x] redirect_uriの適切なエンコード処理
+### バリデーション・設定管理
+- **class-validator** + **class-transformer** - 既存のzodと併用
+  - DTOクラスベースのバリデーション
+  - 型安全な変換処理
+- **convict** または **config** - 設定管理
+  - 環境変数の型安全な管理
+  - 設定値の検証とデフォルト値
 
-### 3. 認証コード交換処理の修正
-- [x] **3.1** `exchangeCodeForTokens`メソッドの修正
-  - [x] リクエストヘッダーに `Content-Type: application/x-www-form-urlencoded` を設定
-  - [x] パラメータ形式を公式仕様に準拠
-  - [x] company_idとexternal_cidの取得・保存処理を追加（型定義更新）
+### 関数型プログラミング・エラーハンドリング
+- **fp-ts** - 関数型プログラミングライブラリ
+  - Either型によるエラーハンドリング
+  - Option型によるnull安全性
+  - パイプライン処理
+- **neverthrow** - Result型ライブラリ（fp-tsより軽量）
+  - Result<T, E>型によるエラーハンドリング
+  - チェーン可能なエラー処理
 
-### 4. リフレッシュトークン処理の修正
-- [x] **4.1** `refreshTokens`メソッドの修正
-  - [x] エンドポイントURLの修正
-  - [x] リクエスト形式を公式仕様に準拠
-  - [x] リフレッシュトークンの有効期限管理（90日間）
+### デコレーター・メタプログラミング
+- **reflect-metadata** - メタデータリフレクション
+  - デコレーターベースの設定
+  - 実行時型情報の取得
+- **class-transformer** - オブジェクト変換
+  - APIレスポンスのDTO変換
+  - シリアライゼーション
 
-### 5. 事業所選択機能の実装
-- [x] **5.1** 事業所選択オプションの追加
-  - [x] `prompt=select_company`パラメータの制御
-  - [x] 複数事業所対応のトークン管理
-  - [x] 事業所IDの適切な保存・取得
+### ログ・監視
+- **winston** - 構造化ログ
+  - 既存のloggerの置き換え
+  - 複数の出力先対応
+- **pino** - 高性能ログライブラリ（代替案）
+  - JSON構造化ログ
+  - 高いパフォーマンス
 
-### 6. エラーハンドリングの改善
-- [x] **6.1** freee API固有のエラー処理
-  - [x] 認証エラーの詳細メッセージ
-  - [x] レート制限エラーの適切な処理
-  - [x] トークン期限切れの自動検出・更新
+### テスト・モック
+- **sinon** - モック・スタブライブラリ
+  - 関数・メソッドのモック
+  - スパイ機能
+- **nock** - HTTP モック
+  - freee API呼び出しのモック
+  - テスト時のネットワーク分離
 
-### 7. 設定・環境変数の整理
-- [x] **7.1** 環境変数の見直し
-  - [x] `FREEE_CLIENT_ID` - freeeアプリのクライアントID
-  - [x] `FREEE_CLIENT_SECRET` - freeeアプリのクライアントシークレット
-  - [x] `FREEE_REDIRECT_URI` - 認証後のリダイレクトURI
-  - [x] `FREEE_API_BASE_URL` - APIベースURL（デフォルト: https://api.freee.co.jp）
+### ビルダーパターン・ファクトリー
+- **builder-pattern** - ビルダーパターン実装
+  - 複雑なオブジェクト生成の簡素化
+  - 流暢なインターフェース
 
-### 8. ドキュメントの更新
-- [x] **8.1** README.mdの更新
-  - [x] OAuth認証の設定手順を公式フローに準拠
-  - [x] freeeアプリ作成手順の追加
-  - [x] 認証フローの詳細説明
+### 非同期処理・リトライ
+- **p-retry** - リトライ処理
+  - 指数バックオフ
+  - 条件付きリトライ
+- **p-queue** - 非同期キュー
+  - 並行処理の制御
+  - レート制限対応
 
-- [x] **8.2** API_SPECIFICATION.mdの更新
-  - [x] OAuth認証フローの詳細仕様
-  - [x] エラーレスポンスの仕様
-  - [x] 事業所選択機能の説明
+## ライブラリ導入計画
 
-### 9. テストの追加・修正
-- [x] **9.1** OAuth認証のテスト
-  - [x] 認証URL生成のテスト
-  - [x] 認証コード交換のテスト
-  - [x] リフレッシュトークンのテスト
-  - [x] エラーケースのテスト
+### Phase 0: ライブラリ導入・基盤整備 ✅ 完了
 
-### 10. 開発・デバッグ支援
-- [x] **10.1** MCP Inspector対応の確認
-  - [x] OAuth認証フローのデバッグ機能
-  - [x] 認証状態の可視化
+#### 0.1 依存性注入の導入
+- [x] `inversify` + `reflect-metadata` の導入
+- [x] DIコンテナの設定
+- [x] 基本的なサービスクラスの作成
 
-### 11. セキュリティ強化
-- [x] **11.1** セキュリティ機能の確認・強化
-  - [x] stateパラメータによるCSRF対策
-  - [x] トークンの暗号化保存
-  - [x] セキュリティ監査ログ
+#### 0.2 エラーハンドリングの改善
+- [x] `neverthrow` の導入
+- [x] Result型によるエラーハンドリングパターンの確立
+- [x] AppError型の定義とMCPレスポンス変換
 
-## 実装優先順位
+#### 0.3 バリデーション・設定管理の強化
+- [x] `class-validator` + `class-transformer` の導入
+- [x] `convict` による設定管理の改善
+- [x] 環境変数の型安全な管理
 
-### Phase 1: 基本OAuth認証の修正（必須） ✅ 完了
-1. OAuth認証エンドポイントの修正（タスク1） ✅
-2. 認証URL生成の修正（タスク2） ✅
-3. 認証コード交換処理の修正（タスク3） ✅
-4. リフレッシュトークン処理の修正（タスク4） ✅
+#### 0.4 ログ・監視の改善
+- [x] `winston` の導入
+- [x] 構造化ログの実装
+- [x] 既存のlogger置き換え準備完了
 
-### Phase 2: 機能拡張（推奨） ✅ 完了
-5. 事業所選択機能の実装（タスク5） ✅
-6. エラーハンドリングの改善（タスク6） ✅
-7. 設定・環境変数の整理（タスク7） ✅
+#### 0.5 基盤テスト
+- [x] Phase 0 統合テストの作成・実行
+- [x] 全コンポーネントの動作確認
 
-### Phase 3: ドキュメント・テスト（重要） ✅ 完了
-8. ドキュメントの更新（タスク8） ✅
-9. テストの追加・修正（タスク9） ✅
+## リファクタリング計画
 
-### Phase 4: 運用・保守（任意） ✅ 完了
-10. 開発・デバッグ支援（タスク10） ✅
-11. セキュリティ強化（タスク11） ✅
+### Phase 1: 基盤クラス・ユーティリティの分離
 
-## 参考資料
-- [freee API スタートガイド - アプリケーションを作成する](https://developer.freee.co.jp/startguide/starting-api)
-- [freee API スタートガイド - アクセストークンを取得する](https://developer.freee.co.jp/startguide/getting-access-token)
-- [freee API リファレンス](https://developer.freee.co.jp/reference/accounting/reference)
-- [OAuth 2.0 Authorization Code Grant](https://tools.ietf.org/html/rfc6749#section-4.1)
+#### 1.1 環境変数・設定管理の分離
+- [ ] `src/config/environment.ts` - 環境変数読み込み・検証
+- [ ] `src/config/app-config.ts` - アプリケーション設定
+- [ ] `src/config/oauth-config.ts` - OAuth設定
 
-## 実装完了状況
+#### 1.2 認証関連の分離
+- [ ] `src/auth/auth-manager.ts` - 認証状態管理の統一インターフェース
+- [ ] `src/auth/auth-checker.ts` - 認証状態チェック機能
+- [ ] `src/auth/auth-validator.ts` - 認証情報の検証
 
-🎉 **全Phase完了** - freee APIの公式OAuth 2.0認証フローに完全準拠した本格的なMCPサーバーが完成しました。
+#### 1.3 共通ユーティリティの分離
+- [ ] `src/utils/response-builder.ts` - MCPレスポンス生成
+- [ ] `src/utils/error-handler.ts` - エラーハンドリング
+- [ ] `src/utils/date-utils.ts` - 日付関連ユーティリティ
+- [ ] `src/utils/validation.ts` - 入力値検証
 
-### 主な成果
-1. **freee公式認証フローへの完全準拠**
-2. **事業所選択機能の実装**
-3. **詳細なエラーハンドリング**
-4. **包括的なドキュメント整備**
-5. **充実したテストスイート**
-6. **運用・保守機能の実装**
-7. **セキュリティ強化**
+### Phase 2: ドメイン層の分離
 
-### 新機能（Phase 4で追加）
-- **デバッグ情報ツール**: システム状態の詳細表示
-- **ヘルスチェック機能**: 包括的なシステム監視
-- **セキュリティ監査**: セキュリティイベントの追跡・分析
-- **MCP Inspector完全対応**: 開発・デバッグの効率化
+#### 2.1 リソースハンドラーの分離
+- [ ] `src/resources/base-resource-handler.ts` - リソースハンドラーの基底クラス
+- [ ] `src/resources/companies-resource.ts` - 事業所関連リソース
+- [ ] `src/resources/account-items-resource.ts` - 勘定科目関連リソース
+- [ ] `src/resources/partners-resource.ts` - 取引先関連リソース
+- [ ] `src/resources/sections-resource.ts` - 部門関連リソース
+- [ ] `src/resources/items-resource.ts` - 品目関連リソース
+- [ ] `src/resources/tags-resource.ts` - メモタグ関連リソース
+- [ ] `src/resources/deals-resource.ts` - 取引関連リソース
+- [ ] `src/resources/trial-balance-resource.ts` - 試算表関連リソース
+- [ ] `src/resources/resource-registry.ts` - リソースの登録・管理
 
-### 後方互換性
-- 既存の直接トークン認証（FREEE_ACCESS_TOKEN）は維持
-- 破壊的変更なし
-- 既存ユーザーは設定変更不要
+#### 2.2 ツールハンドラーの分離
+- [ ] `src/tools/base-tool-handler.ts` - ツールハンドラーの基底クラス
+- [ ] `src/tools/auth-tools.ts` - 認証関連ツール
+- [ ] `src/tools/company-tools.ts` - 事業所関連ツール
+- [ ] `src/tools/deal-tools.ts` - 取引関連ツール
+- [ ] `src/tools/partner-tools.ts` - 取引先関連ツール
+- [ ] `src/tools/account-item-tools.ts` - 勘定科目関連ツール
+- [ ] `src/tools/system-tools.ts` - システム関連ツール（ヘルスチェック、メトリクス等）
+- [ ] `src/tools/debug-tools.ts` - デバッグ関連ツール
+- [ ] `src/tools/tool-registry.ts` - ツールの登録・管理
+
+#### 2.3 プロンプトハンドラーの分離
+- [ ] `src/prompts/base-prompt-handler.ts` - プロンプトハンドラーの基底クラス
+- [ ] `src/prompts/setup-prompt.ts` - セットアップガイドプロンプト
+- [ ] `src/prompts/transaction-prompt.ts` - 取引入力支援プロンプト
+- [ ] `src/prompts/closing-prompt.ts` - 月次決算プロンプト
+- [ ] `src/prompts/analysis-prompt.ts` - 試算表分析プロンプト
+- [ ] `src/prompts/prompt-registry.ts` - プロンプトの登録・管理
+
+### Phase 3: サービス層の分離
+
+#### 3.1 ビジネスロジックサービス
+- [ ] `src/services/company-service.ts` - 事業所関連ビジネスロジック
+- [ ] `src/services/deal-service.ts` - 取引関連ビジネスロジック
+- [ ] `src/services/partner-service.ts` - 取引先関連ビジネスロジック
+- [ ] `src/services/account-item-service.ts` - 勘定科目関連ビジネスロジック
+- [ ] `src/services/trial-balance-service.ts` - 試算表関連ビジネスロジック
+
+#### 3.2 システムサービス
+- [ ] `src/services/health-service.ts` - ヘルスチェックサービス
+- [ ] `src/services/metrics-service.ts` - メトリクス収集サービス
+- [ ] `src/services/security-service.ts` - セキュリティ監査サービス
+- [ ] `src/services/cache-service.ts` - キャッシュ管理サービス
+
+### Phase 4: インフラ層の分離
+
+#### 4.1 外部API連携
+- [ ] `src/infrastructure/freee-api-client.ts` - freee API クライアントのラッパー
+- [ ] `src/infrastructure/api-response-mapper.ts` - APIレスポンスのマッピング
+
+#### 4.2 デバッグ・ログ機能
+- [ ] `src/infrastructure/debug-interceptor.ts` - デバッグ用インターセプター
+- [ ] `src/infrastructure/logger-setup.ts` - ログ設定
+
+### Phase 5: アプリケーション層の統合
+
+#### 5.1 MCPサーバー構成
+- [ ] `src/server/mcp-server.ts` - MCPサーバーの設定・起動
+- [ ] `src/server/request-handlers.ts` - リクエストハンドラーの統合
+- [ ] `src/server/middleware.ts` - 共通ミドルウェア
+
+#### 5.2 依存性注入・設定
+- [ ] `src/container/service-container.ts` - DIコンテナ
+- [ ] `src/container/bindings.ts` - 依存関係の設定
+
+#### 5.3 新しいエントリーポイント
+- [ ] `src/index.ts` - 新しいエントリーポイント（簡潔に）
+
+### Phase 6: 型定義・インターフェースの整理
+
+#### 6.1 ドメイン型定義
+- [ ] `src/types/domain.ts` - ドメイン固有の型定義
+- [ ] `src/types/api.ts` - API関連の型定義
+- [ ] `src/types/mcp.ts` - MCP関連の型定義
+
+#### 6.2 インターフェース定義
+- [ ] `src/interfaces/resource-handler.ts` - リソースハンドラーインターフェース
+- [ ] `src/interfaces/tool-handler.ts` - ツールハンドラーインターフェース
+- [ ] `src/interfaces/prompt-handler.ts` - プロンプトハンドラーインターフェース
+- [ ] `src/interfaces/service.ts` - サービスインターフェース
+
+### Phase 7: テスト・品質向上
+
+#### 7.1 ユニットテスト
+- [ ] 各クラス・関数のユニットテスト作成
+- [ ] モック・スタブの整備
+
+#### 7.2 統合テスト
+- [ ] MCPサーバー全体の統合テスト
+- [ ] freee API連携テスト
+
+#### 7.3 品質向上
+- [ ] ESLint設定の見直し
+- [ ] TypeScript strict mode対応
+- [ ] コードカバレッジ測定
+
+## 実装優先度
+
+### 最高優先度（Phase 0）
+1. **inversify** - 依存性注入の導入
+2. **neverthrow** - Result型エラーハンドリング
+3. **class-validator** - バリデーション強化
+4. **winston** - ログ改善
+
+### 高優先度（Phase 1-2）
+1. 環境変数・設定管理の分離（convict使用）
+2. 認証関連の分離（DIコンテナ活用）
+3. 共通ユーティリティの分離（Result型活用）
+4. リソースハンドラーの分離（デコレーターベース）
+5. ツールハンドラーの分離（ファクトリーパターン）
+
+### 中優先度（Phase 3-4）
+1. ビジネスロジックサービスの分離（DIコンテナ活用）
+2. システムサービスの分離（p-retry使用）
+3. 外部API連携の分離（nock使用テスト）
+
+### 低優先度（Phase 5-7）
+1. アプリケーション層の統合（builder-pattern使用）
+2. 型定義・インターフェースの整理（reflect-metadata活用）
+3. テスト・品質向上（sinon + nock使用）
+
+## 具体的なライブラリ活用例
+
+### inversify（依存性注入）
+```typescript
+@injectable()
+class FreeeApiService {
+  constructor(
+    @inject('HttpClient') private httpClient: HttpClient,
+    @inject('AuthService') private authService: AuthService
+  ) {}
+}
+```
+
+### neverthrow（エラーハンドリング）
+```typescript
+const result = await freeeApiService.getCompanies()
+  .andThen(companies => validateCompanies(companies))
+  .map(companies => formatResponse(companies));
+
+if (result.isErr()) {
+  return handleError(result.error);
+}
+```
+
+### class-validator（バリデーション）
+```typescript
+class CreateDealDto {
+  @IsDateString()
+  issue_date: string;
+
+  @IsEnum(['income', 'expense'])
+  type: string;
+
+  @ValidateNested({ each: true })
+  @Type(() => DealDetailDto)
+  details: DealDetailDto[];
+}
+```
+
+## 期待される効果
+
+### 保守性の向上
+- 単一責任の原則により、各クラスの役割が明確
+- 変更時の影響範囲が限定される
+- 新機能追加時の既存コード修正が不要
+
+### 可読性の向上
+- ファイルサイズの適正化（各ファイル100-200行程度）
+- 関心の分離により理解しやすい構造
+
+### テスタビリティの向上
+- 各コンポーネントの独立性向上
+- モック・スタブの作成が容易
+
+### 拡張性の向上
+- 新しいリソース・ツール・プロンプトの追加が容易
+- プラグイン的な構造による機能拡張
+
+## パッケージ追加コマンド
+
+### 基本ライブラリ
+```bash
+# 依存性注入
+npm install inversify reflect-metadata
+
+# エラーハンドリング
+npm install neverthrow
+
+# バリデーション
+npm install class-validator class-transformer
+
+# 設定管理
+npm install convict
+
+# ログ
+npm install winston
+
+# 非同期処理
+npm install p-retry p-queue
+
+# ビルダーパターン
+npm install builder-pattern
+```
+
+### 開発・テスト用
+```bash
+# テスト・モック
+npm install --save-dev sinon nock
+
+# 型定義
+npm install --save-dev @types/convict @types/sinon
+```
 
 ## 注意事項
-- 本番環境での動作確認を必ず実施する
-- セキュリティ要件を満たすことを最優先とする
-- トークンの適切な管理を実施する
+
+- リファクタリング中も既存機能の動作を保証
+- 段階的な実装により、各フェーズでの動作確認を実施
+- 既存のAPIインターフェースは可能な限り維持
+- パフォーマンスの劣化がないよう注意
+- ライブラリ導入時はバンドルサイズの増加に注意
+- 既存のzod、axiosとの共存を考慮

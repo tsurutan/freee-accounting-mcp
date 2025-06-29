@@ -24,6 +24,8 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "outDir": "dist",
     "rootDir": "src",
     "composite": true,
