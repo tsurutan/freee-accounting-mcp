@@ -19,10 +19,9 @@ freee会計APIと連携するModel Context Protocol (MCP) Serverです。
 - 試算表データの取得 (`trial-balance://current`)
 
 ### Tools
-- OAuth認証 (`generate-auth-url`, `exchange-auth-code`, `check-auth-status`)
+- 認証管理 (`generate-auth-url`, `exchange-auth-code`, `check-auth-status`)
 - 接続テスト (`test-connection`)
-- 新規取引の作成 (`create-deal`)
-- 取引の更新 (`update-deal`)
+- 取引管理 (`create-deal`, `update-deal`, `get-deals`)
 - 取引先の作成 (`create-partner`)
 - 勘定科目の作成 (`create-account-item`)
 - システム監視 (`get-rate-limit-info`, `get-logs`, `get-metrics`, `get-health`)
@@ -53,7 +52,9 @@ mcp-server/
 
 ## 特徴
 
-- **完全なOAuth 2.0対応**: freeeの認証フローを完全サポート
+- **柔軟な認証方式**: 直接トークン認証とOAuth 2.0認証の両方をサポート
+- **固定事業所対応**: 事業所ID 2067140 に特化した設定
+- **包括的な取引管理**: 取引の作成・更新・一覧取得をサポート
 - **型安全**: TypeScriptによる完全な型定義
 - **モノレポ構成**: 共通ライブラリとアプリケーションの分離
 - **MCP準拠**: Model Context Protocolの仕様に完全準拠
@@ -88,13 +89,79 @@ npm run build
 
 ### 環境変数設定
 
-`.env`ファイルを作成し、以下の環境変数を設定してください：
+`.env`ファイルを作成し、認証方式に応じて以下の環境変数を設定してください：
+
+#### 方式1: 直接トークン認証（推奨）
 
 ```env
+# freee APIアクセストークン
+FREEE_ACCESS_TOKEN=your_access_token
+
+# オプション設定
+FREEE_API_BASE_URL=https://api.freee.co.jp
+```
+
+#### 方式2: OAuth認証
+
+```env
+# OAuth設定
 FREEE_CLIENT_ID=your_client_id
 FREEE_CLIENT_SECRET=your_client_secret
 FREEE_REDIRECT_URI=your_redirect_uri
+
+# オプション設定
 FREEE_API_BASE_URL=https://api.freee.co.jp
+```
+
+**注意**: `FREEE_ACCESS_TOKEN`が設定されている場合は、直接トークン認証が優先されます。
+
+## 使用方法
+
+### 認証の設定
+
+#### 直接トークン認証の場合
+
+1. freee APIのアクセストークンを取得
+2. 環境変数`FREEE_ACCESS_TOKEN`に設定
+3. MCP Serverを起動
+
+```bash
+# 環境変数を設定
+export FREEE_ACCESS_TOKEN="your_access_token"
+
+# MCP Serverを起動
+npm run build && node apps/freee-accounting/dist/index.js
+```
+
+#### OAuth認証の場合
+
+1. freeeアプリケーションを作成してClient IDとClient Secretを取得
+2. 環境変数を設定
+3. MCP Serverを起動
+4. `generate-auth-url`ツールで認証URLを生成
+5. ブラウザで認証を実行
+6. `exchange-auth-code`ツールで認証コードをトークンに交換
+
+### 基本的な使用例
+
+```bash
+# 認証状態の確認
+check-auth-status
+
+# 事業所一覧の取得
+companies://list
+
+# 取引一覧の取得（過去30日）
+get-deals
+
+# 取引一覧の取得（年月指定）
+get-deals --year 2024 --month 12
+
+# 取引一覧の取得（日付範囲指定）
+get-deals --start_date 2024-12-01 --end_date 2024-12-31
+
+# 取引の作成（事業所ID自動設定）
+create-deal
 ```
 
 ## 開発

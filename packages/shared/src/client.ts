@@ -107,6 +107,7 @@ export class FreeeClient {
       timeout: config.timeout || 30000,
       headers: {
         'Content-Type': 'application/json',
+        'X-Api-Version': '2020-06-15',
       },
     });
 
@@ -126,17 +127,32 @@ export class FreeeClient {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+
+
       return config;
     });
 
     // レスポンスインターセプター
     this.client.interceptors.response.use(
       (response) => {
+        // デバッグ用ログ（一時的）
+        console.error('FreeeClient Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          data_type: typeof response.data,
+          data_keys: response.data ? Object.keys(response.data) : null,
+          data_sample: response.data
+        });
+
         // レート制限情報を更新
         this.rateLimiter.updateRateLimit(response.headers);
         return response;
       },
       (error) => {
+
+
         // レート制限情報を更新（エラーレスポンスからも）
         if (error.response?.headers) {
           this.rateLimiter.updateRateLimit(error.response.headers);
@@ -186,6 +202,7 @@ export class FreeeClient {
         logger.debug('Data cached', { url, cacheKey });
       }
 
+      logger.info('response data=', response.data);
       return response.data;
     }, `GET ${url}`);
   }

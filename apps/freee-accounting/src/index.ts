@@ -46,28 +46,48 @@ import {
   SecurityAuditor
 } from '@mcp-server/shared';
 import { OAuthConfig, CreateDealRequest } from '@mcp-server/types';
+import { getConfig, getCompanyId, getDateRange, getMonthDateRange } from './config.js';
 
 // 環境変数から設定を読み込み
-const oauthConfig: OAuthConfig = {
-  clientId: process.env.FREEE_CLIENT_ID || '',
-  clientSecret: process.env.FREEE_CLIENT_SECRET || '',
-  redirectUri: process.env.FREEE_REDIRECT_URI || 'http://localhost:3000/callback',
-  baseUrl: process.env.FREEE_API_BASE_URL || 'https://api.freee.co.jp',
-};
+const accessToken = process.env.FREEE_ACCESS_TOKEN;
+const appConfig = getConfig();
+const baseUrl = appConfig.baseUrl;
+
+// 認証方式の判定
+const useDirectToken = !!accessToken;
+const useOAuth = !useDirectToken && !!(process.env.FREEE_CLIENT_ID && process.env.FREEE_CLIENT_SECRET);
+
+// OAuth設定（OAuth認証使用時のみ）
+let oauthConfig: OAuthConfig | undefined;
+if (useOAuth) {
+  oauthConfig = {
+    clientId: process.env.FREEE_CLIENT_ID || '',
+    clientSecret: process.env.FREEE_CLIENT_SECRET || '',
+    redirectUri: process.env.FREEE_REDIRECT_URI || 'http://localhost:3000/callback',
+    baseUrl: baseUrl,
+  };
+}
 
 // デバッグ用：環境変数の読み込み状況を確認（MCP Inspector使用時はコメントアウト）
 // console.log('Environment variables loaded:', {
+//   hasAccessToken: !!accessToken,
 //   hasClientId: !!process.env.FREEE_CLIENT_ID,
 //   hasClientSecret: !!process.env.FREEE_CLIENT_SECRET,
 //   redirectUri: process.env.FREEE_REDIRECT_URI,
-//   baseUrl: process.env.FREEE_API_BASE_URL,
+//   baseUrl: baseUrl,
+//   authMode: useDirectToken ? 'direct_token' : useOAuth ? 'oauth' : 'none',
 // });
 
 // OAuth クライアントとAPIクライアントを初期化
-const oauthClient = new FreeeOAuthClient(oauthConfig);
+let oauthClient: FreeeOAuthClient | undefined;
+if (useOAuth && oauthConfig) {
+  oauthClient = new FreeeOAuthClient(oauthConfig);
+}
+
 const freeeClient = new FreeeClient({
-  baseURL: oauthConfig.baseUrl,
-  oauthClient,
+  baseURL: baseUrl,
+  accessToken: useDirectToken ? accessToken : undefined,
+  oauthClient: oauthClient,
   maxRetries: 3,
   retryDelay: 1000,
   enableCache: true,
@@ -79,20 +99,56 @@ const metricsCollector = new MetricsCollector();
 
 // MCP Inspector使用時はlogger出力を無効化
 // logger.info('freee会計 MCP Server initializing', {
-//   baseUrl: oauthConfig.baseUrl,
-//   hasClientId: !!oauthConfig.clientId,
-//   hasClientSecret: !!oauthConfig.clientSecret,
+//   baseUrl: baseUrl,
+//   authMode: useDirectToken ? 'direct_token' : useOAuth ? 'oauth' : 'none',
+//   hasAccessToken: !!accessToken,
+//   hasClientId: !!process.env.FREEE_CLIENT_ID,
+//   hasClientSecret: !!process.env.FREEE_CLIENT_SECRET,
 // });
+
+// 認証状態チェック用のヘルパー関数
+function checkAuthenticationStatus(): { isAuthenticated: boolean; errorResponse?: any } {
+  if (useDirectToken) {
+    // 直接トークン認証の場合は常に認証済みとみなす
+    return { isAuthenticated: true };
+  } else if (useOAuth && oauthClient) {
+    const authState = oauthClient.getAuthState();
+    if (!authState.isAuthenticated) {
+      return {
+        isAuthenticated: false,
+        errorResponse: {
+          error: '認証が必要です',
+          message: 'generate-auth-url ツールを使用して認証を開始してください',
+        }
+      };
+    }
+    return { isAuthenticated: true };
+  } else {
+    return {
+      isAuthenticated: false,
+      errorResponse: {
+        error: '認証設定が不正です',
+        message: 'FREEE_ACCESS_TOKEN または OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください',
+      }
+    };
+  }
+}
 
 // 簡単なヘルスチェック機能
 const healthChecks = {
-  async checkOAuthConfig(): Promise<boolean> {
-    return !!(oauthConfig.clientId && oauthConfig.clientSecret);
+  async checkAuthConfig(): Promise<boolean> {
+    if (useDirectToken) {
+      return !!accessToken;
+    }
+    if (useOAuth && oauthConfig) {
+      return !!(oauthConfig.clientId && oauthConfig.clientSecret);
+    }
+    return false;
   },
 
   async checkFreeeAPI(): Promise<boolean> {
     try {
-      // 簡単な接続テスト（認証不要のエンドポイント）
+      // 簡単な接続テスト
       const response = await freeeClient.get('/api/1/companies');
       return response !== null;
     } catch (error) {
@@ -102,7 +158,7 @@ const healthChecks = {
 
   async runAllChecks(): Promise<Record<string, boolean>> {
     return {
-      oauth_config: await this.checkOAuthConfig(),
+      auth_config: await this.checkAuthConfig(),
       freee_api: await this.checkFreeeAPI(),
     };
   }
@@ -174,7 +230,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
       {
         uri: 'deals://list',
         name: '取引一覧',
-        description: '取引の一覧を取得します',
+        description: '取引（収入・支出）の一覧を取得します',
         mimeType: 'application/json',
       },
       {
@@ -194,17 +250,14 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   try {
     if (uri === 'companies://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
@@ -228,42 +281,23 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'companies://current') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の詳細情報を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-                message: 'アクセス可能な事業所がありません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const currentCompany = companies[0];
+      // 固定の事業所情報を取得
+      const companyId = getCompanyId();
+      const companyResponse = await freeeClient.get(`/api/1/companies/${companyId}`);
+      const currentCompany = companyResponse.data;
       return {
         contents: [
           {
@@ -280,41 +314,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'account-items://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の勘定科目一覧を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所の勘定科目一覧を取得
+      const companyId = getCompanyId();
       const accountItemsResponse = await freeeClient.get(`/api/1/account_items?company_id=${companyId}`);
 
       return {
@@ -334,41 +348,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'partners://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の取引先一覧を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所の取引先一覧を取得
+      const companyId = getCompanyId();
       const partnersResponse = await freeeClient.get(`/api/1/partners?company_id=${companyId}`);
 
       return {
@@ -388,41 +382,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'sections://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の部門一覧を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所の部門一覧を取得
+      const companyId = getCompanyId();
       const sectionsResponse = await freeeClient.get(`/api/1/sections?company_id=${companyId}`);
 
       return {
@@ -442,41 +416,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'items://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の品目一覧を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所の品目一覧を取得
+      const companyId = getCompanyId();
       const itemsResponse = await freeeClient.get(`/api/1/items?company_id=${companyId}`);
 
       return {
@@ -496,41 +450,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'tags://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所のメモタグ一覧を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所のメモタグ一覧を取得
+      const companyId = getCompanyId();
       const tagsResponse = await freeeClient.get(`/api/1/tags?company_id=${companyId}`);
 
       return {
@@ -550,45 +484,54 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'deals://list') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の取引一覧を取得
+      // 固定の事業所の取引一覧を取得
+      const companyId = getCompanyId();
+
+      // 事業所一覧を取得して、指定した事業所IDが存在するかチェック
       const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
+      const rawData = companiesResponse.data as any;
+      const companies = rawData?.companies || rawData || [];
+      const targetCompany = companies.find((c: any) => c.id === companyId);
 
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
+      // より広い期間の取引を取得（過去365日）
+      const { startDate, endDate } = getDateRange(365);
+
+      // パラメータの構築（既存のget-dealsツールと同じ方式）
+      const params = new URLSearchParams({
+        company_id: companyId.toString(),
+        start_issue_date: startDate,
+        end_issue_date: endDate,
+        limit: '100',
+        offset: '0',
+      });
+
+      const dealsResponse = await freeeClient.get(`/api/1/deals?${params.toString()}`);
+
+      // freee APIのレスポンス形式に対応（既存実装と同じロジック）
+      let deals: any[] = [];
+      if (dealsResponse.data) {
+        const data = dealsResponse.data as any;
+        if (Array.isArray(data)) {
+          deals = data;
+        } else if (data.deals && Array.isArray(data.deals)) {
+          deals = data.deals;
+        } else if (data.data && Array.isArray(data.data)) {
+          deals = data.data;
+        }
       }
-
-      const companyId = companies[0].id;
-      // 最近30日間の取引を取得
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const dealsResponse = await freeeClient.get(`/api/1/deals?company_id=${companyId}&start_issue_date=${startDate}&end_issue_date=${endDate}&limit=100`);
 
       return {
         contents: [
@@ -596,9 +539,16 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              deals: dealsResponse.data,
+              deals: deals,
               company_id: companyId,
               period: { start_date: startDate, end_date: endDate },
+              deals_count: deals.length,
+              api_url: `/api/1/deals?${params.toString()}`,
+              raw_response_structure: dealsResponse.data ? Object.keys(dealsResponse.data) : 'no_data',
+              raw_response_sample: dealsResponse.data,
+              available_companies: companies.map((c: any) => ({ id: c.id, name: c.name })),
+              target_company_found: !!targetCompany,
+              target_company_info: targetCompany,
               timestamp: new Date().toISOString(),
             }, null, 2),
           },
@@ -608,41 +558,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     if (uri === 'trial-balance://current') {
       // 認証状態をチェック
-      const authState = oauthClient.getAuthState();
-      if (!authState.isAuthenticated) {
+      const authCheck = checkAuthenticationStatus();
+      if (!authCheck.isAuthenticated) {
         return {
           contents: [
             {
               uri,
               mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '認証が必要です',
-                message: 'generate-auth-url ツールを使用して認証を開始してください',
-              }, null, 2),
+              text: JSON.stringify(authCheck.errorResponse, null, 2),
             },
           ],
         };
       }
 
-      // 最初の事業所の試算表を取得
-      const companiesResponse = await freeeClient.get('/api/1/companies');
-      const companies = companiesResponse.data as any[];
-
-      if (!companies || companies.length === 0) {
-        return {
-          contents: [
-            {
-              uri,
-              mimeType: 'application/json',
-              text: JSON.stringify({
-                error: '事業所が見つかりません',
-              }, null, 2),
-            },
-          ],
-        };
-      }
-
-      const companyId = companies[0].id;
+      // 固定の事業所の試算表を取得
+      const companyId = getCompanyId();
       const currentYear = new Date().getFullYear();
       const currentMonth = new Date().getMonth() + 1;
 
@@ -695,7 +625,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: 'generate-auth-url',
-        description: 'freee OAuth認証URLを生成します',
+        description: 'freee OAuth認証URLを生成します（OAuth認証使用時のみ）',
         inputSchema: {
           type: 'object',
           properties: {
@@ -708,7 +638,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'exchange-auth-code',
-        description: '認証コードをアクセストークンに交換します',
+        description: '認証コードをアクセストークンに交換します（OAuth認証使用時のみ）',
         inputSchema: {
           type: 'object',
           properties: {
@@ -722,7 +652,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'check-auth-status',
-        description: '現在の認証状態を確認します',
+        description: '現在の認証状態を確認します（直接トークン認証またはOAuth認証）',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'get-companies',
+        description: '利用可能な事業所一覧を取得します',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -730,14 +668,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'create-deal',
-        description: '新しい取引を作成します',
+        description: '新しい取引を作成します（事業所ID: 2067140固定）',
         inputSchema: {
           type: 'object',
           properties: {
-            company_id: {
-              type: 'number',
-              description: '事業所ID',
-            },
             issue_date: {
               type: 'string',
               description: '取引日（YYYY-MM-DD形式）',
@@ -787,7 +721,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               },
             },
           },
-          required: ['company_id', 'issue_date', 'type', 'details'],
+          required: ['issue_date', 'type', 'details'],
         },
       },
       {
@@ -800,14 +734,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'update-deal',
-        description: '既存の取引を更新します',
+        description: '既存の取引を更新します（事業所ID: 2067140固定）',
         inputSchema: {
           type: 'object',
           properties: {
-            company_id: {
-              type: 'number',
-              description: '事業所ID',
-            },
             deal_id: {
               type: 'number',
               description: '取引ID',
@@ -860,19 +790,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               },
             },
           },
-          required: ['company_id', 'deal_id'],
+          required: ['deal_id'],
         },
       },
       {
         name: 'create-partner',
-        description: '新しい取引先を作成します',
+        description: '新しい取引先を作成します（事業所ID: 2067140固定）',
         inputSchema: {
           type: 'object',
           properties: {
-            company_id: {
-              type: 'number',
-              description: '事業所ID',
-            },
             name: {
               type: 'string',
               description: '取引先名',
@@ -902,19 +828,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'メールアドレス（オプション）',
             },
           },
-          required: ['company_id', 'name'],
+          required: ['name'],
         },
       },
       {
         name: 'create-account-item',
-        description: '新しい勘定科目を作成します',
+        description: '新しい勘定科目を作成します（事業所ID: 2067140固定）',
         inputSchema: {
           type: 'object',
           properties: {
-            company_id: {
-              type: 'number',
-              description: '事業所ID',
-            },
             name: {
               type: 'string',
               description: '勘定科目名',
@@ -932,7 +854,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: 'ショートカット（オプション）',
             },
           },
-          required: ['company_id', 'name', 'tax_code', 'account_category_id'],
+          required: ['name', 'tax_code', 'account_category_id'],
         },
       },
       {
@@ -1009,6 +931,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['confirm'],
         },
       },
+      {
+        name: 'get-deals',
+        description: '取引一覧を取得します',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            start_date: {
+              type: 'string',
+              description: '開始日（YYYY-MM-DD形式、オプション）',
+            },
+            end_date: {
+              type: 'string',
+              description: '終了日（YYYY-MM-DD形式、オプション）',
+            },
+            year: {
+              type: 'number',
+              description: '年（YYYY形式、月と組み合わせて使用）',
+            },
+            month: {
+              type: 'number',
+              description: '月（1-12、年と組み合わせて使用）',
+            },
+            limit: {
+              type: 'number',
+              description: '取得件数の上限（デフォルト: 100）',
+            },
+            offset: {
+              type: 'number',
+              description: '取得開始位置（デフォルト: 0）',
+            },
+          },
+        },
+      },
     ],
   };
 });
@@ -1021,6 +976,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case 'generate-auth-url': {
+        if (!useOAuth || !oauthClient) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'OAuth認証が設定されていません。FREEE_ACCESS_TOKENを使用している場合、このツールは不要です。',
+              },
+            ],
+          };
+        }
         const state = args?.state as string | undefined;
         const authUrl = oauthClient.generateAuthUrl(state);
         return {
@@ -1034,6 +999,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'exchange-auth-code': {
+        if (!useOAuth || !oauthClient) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: 'OAuth認証が設定されていません。FREEE_ACCESS_TOKENを使用している場合、このツールは不要です。',
+              },
+            ],
+          };
+        }
         const code = args?.code as string;
         if (!code) {
           throw new Error('認証コードが必要です');
@@ -1051,23 +1026,112 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'check-auth-status': {
-        const authState = oauthClient.getAuthState();
-        if (authState.isAuthenticated) {
-          const expiresAt = authState.expiresAt ? new Date(authState.expiresAt * 1000).toLocaleString() : '不明';
+        if (useDirectToken) {
           return {
             content: [
               {
                 type: 'text',
-                text: `認証済み\nトークン有効期限: ${expiresAt}`,
+                text: `認証済み（直接トークン認証）\n認証方式: ACCESS_TOKEN`,
               },
             ],
           };
+        } else if (useOAuth && oauthClient) {
+          const authState = oauthClient.getAuthState();
+          if (authState.isAuthenticated) {
+            const expiresAt = authState.expiresAt ? new Date(authState.expiresAt * 1000).toLocaleString() : '不明';
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: `認証済み（OAuth認証）\nトークン有効期限: ${expiresAt}`,
+                },
+              ],
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: '未認証です。generate-auth-url ツールを使用して認証を開始してください。',
+                },
+              ],
+            };
+          }
         } else {
           return {
             content: [
               {
                 type: 'text',
-                text: '未認証です。generate-auth-url ツールを使用して認証を開始してください。',
+                text: '認証設定が不正です。FREEE_ACCESS_TOKEN または OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください。',
+              },
+            ],
+          };
+        }
+      }
+
+      case 'get-companies': {
+        // 認証状態をチェック
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  error: '認証が必要です',
+                  message: 'まず認証を完了してください。',
+                  timestamp: new Date().toISOString(),
+                }, null, 2),
+              },
+            ],
+          };
+        }
+
+        try {
+          // 事業所一覧を取得
+          const companiesResponse = await freeeClient.get('/api/1/companies');
+          const rawData = companiesResponse.data as any;
+          const companies = rawData?.companies || rawData || [];
+
+          if (companies.length === 0) {
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    companies: [],
+                    message: '利用可能な事業所が見つかりませんでした。',
+                    current_company_id: getCompanyId(),
+                    timestamp: new Date().toISOString(),
+                  }, null, 2),
+                },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  companies: companies,
+                  current_company_id: getCompanyId(),
+                  timestamp: new Date().toISOString(),
+                }, null, 2),
+              },
+            ],
+          };
+        } catch (error: any) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({
+                  error: '事業所一覧取得エラー',
+                  message: error.message,
+                  status: error.response?.status,
+                  timestamp: new Date().toISOString(),
+                }, null, 2),
               },
             ],
           };
@@ -1075,15 +1139,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'create-deal': {
-        const authState = oauthClient.getAuthState();
-        if (!authState.isAuthenticated) {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
           throw new Error('認証が必要です。まず認証を完了してください。');
         }
 
         const dealData = args as unknown as CreateDealRequest;
 
+        // 固定のcompany_idを設定
+        dealData.company_id = getCompanyId();
+
         // 必須フィールドの検証
-        if (!dealData.company_id || !dealData.issue_date || !dealData.type || !dealData.details) {
+        if (!dealData.issue_date || !dealData.type || !dealData.details) {
           throw new Error('必須フィールドが不足しています。');
         }
 
@@ -1116,8 +1183,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'test-connection': {
-        const authState = oauthClient.getAuthState();
-        if (!authState.isAuthenticated) {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
           return {
             content: [
               {
@@ -1154,8 +1221,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'update-deal': {
-        const authState = oauthClient.getAuthState();
-        if (!authState.isAuthenticated) {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
           return {
             content: [
               {
@@ -1166,10 +1233,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const { company_id, deal_id, issue_date, partner_id, ref_number, details } = args as any;
+        const { deal_id, issue_date, partner_id, ref_number, details } = args as any;
+        const company_id = getCompanyId();
 
-        if (!company_id || !deal_id) {
-          throw new Error('company_id と deal_id は必須です');
+        if (!deal_id) {
+          throw new Error('deal_id は必須です');
         }
 
         try {
@@ -1194,8 +1262,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'create-partner': {
-        const authState = oauthClient.getAuthState();
-        if (!authState.isAuthenticated) {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
           return {
             content: [
               {
@@ -1206,10 +1274,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const { company_id, name, shortcut1, shortcut2, long_name, name_kana, phone, email } = args as any;
+        const { name, shortcut1, shortcut2, long_name, name_kana, phone, email } = args as any;
+        const company_id = getCompanyId();
 
-        if (!company_id || !name) {
-          throw new Error('company_id と name は必須です');
+        if (!name) {
+          throw new Error('name は必須です');
         }
 
         try {
@@ -1240,8 +1309,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'create-account-item': {
-        const authState = oauthClient.getAuthState();
-        if (!authState.isAuthenticated) {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
           return {
             content: [
               {
@@ -1252,10 +1321,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        const { company_id, name, tax_code, account_category_id, shortcut } = args as any;
+        const { name, tax_code, account_category_id, shortcut } = args as any;
+        const company_id = getCompanyId();
 
-        if (!company_id || !name || tax_code === undefined || !account_category_id) {
-          throw new Error('company_id, name, tax_code, account_category_id は必須です');
+        if (!name || tax_code === undefined || !account_category_id) {
+          throw new Error('name, tax_code, account_category_id は必須です');
         }
 
         try {
@@ -1461,6 +1531,81 @@ ${Object.entries(healthResults).map(([name, result]) =>
         };
       }
 
+      case 'get-deals': {
+        const authCheck = checkAuthenticationStatus();
+        if (!authCheck.isAuthenticated) {
+          throw new Error('認証が必要です。まず認証を完了してください。');
+        }
+
+        const { start_date, end_date, year, month, limit, offset } = args as any;
+        const companyId = getCompanyId();
+
+        try {
+          let startDate: string;
+          let endDate: string;
+
+          // 日付範囲の決定
+          if (year && month) {
+            // 年月指定の場合
+            const dateRange = getMonthDateRange(year, month);
+            startDate = dateRange.startDate;
+            endDate = dateRange.endDate;
+          } else if (start_date && end_date) {
+            // 開始日・終了日指定の場合
+            startDate = start_date;
+            endDate = end_date;
+          } else {
+            // デフォルト（過去30日）
+            const dateRange = getDateRange();
+            startDate = dateRange.startDate;
+            endDate = dateRange.endDate;
+          }
+
+          // パラメータの構築
+          const params = new URLSearchParams({
+            company_id: companyId.toString(),
+            start_issue_date: startDate,
+            end_issue_date: endDate,
+            limit: (limit || appConfig.defaultDealsLimit).toString(),
+            offset: (offset || 0).toString(),
+          });
+
+          // 取引一覧を取得
+          const response = await freeeClient.get(`/api/1/deals?${params.toString()}`);
+
+          // freee APIのレスポンス形式に対応
+          let deals: any[] = [];
+          if (response.data) {
+            const data = response.data as any;
+            if (Array.isArray(data)) {
+              deals = data;
+            } else if (data.deals && Array.isArray(data.deals)) {
+              deals = data.deals;
+            } else if (data.data && Array.isArray(data.data)) {
+              deals = data.data;
+            }
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `取引一覧を取得しました。
+
+期間: ${startDate} ～ ${endDate}
+事業所ID: ${companyId}
+取得件数: ${deals.length}件
+
+取引データ:
+${deals.length > 0 ? JSON.stringify(deals, null, 2) : '取引データがありません'}`,
+              },
+            ],
+          };
+        } catch (error: any) {
+          throw new Error(`取引一覧取得エラー: ${error.message}`);
+        }
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1554,17 +1699,28 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
             type: 'text',
             text: `freee会計 MCP Server のセットアップ手順：
 
+## 認証方式の選択
+
+### 方式1: 直接トークン認証（推奨）
+1. 環境変数の設定
+   - FREEE_ACCESS_TOKEN: freee APIのアクセストークン
+
+### 方式2: OAuth認証
 1. 環境変数の設定
    - FREEE_CLIENT_ID: freeeアプリのクライアントID
    - FREEE_CLIENT_SECRET: freeeアプリのクライアントシークレット
    - FREEE_REDIRECT_URI: リダイレクトURI
 
 2. OAuth認証の実行
+   - generate-auth-url ツールで認証URLを生成
    - 認証URLにアクセスして認証コードを取得
-   - 認証コードを使用してアクセストークンを取得
+   - exchange-auth-code ツールで認証コードをアクセストークンに交換
 
-3. MCP Serverの起動
-   - 設定完了後、MCP Serverが利用可能になります
+## 共通設定
+- FREEE_API_BASE_URL: freee APIのベースURL（オプション、デフォルト: https://api.freee.co.jp）
+
+## MCP Serverの起動
+設定完了後、MCP Serverが利用可能になります。
 
 詳細は README.md をご確認ください。`,
           },
@@ -1780,7 +1936,8 @@ ${focusArea === 'expenses' ? '\n【費用重点分析】\n- コスト構造の�
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('freee会計 MCP Server が起動しました');
+  const authMode = useDirectToken ? '直接トークン認証' : useOAuth ? 'OAuth認証' : '認証未設定';
+  console.error(`freee会計 MCP Server が起動しました (認証方式: ${authMode})`);
 }
 
 main().catch((error) => {
