@@ -199,10 +199,10 @@ async function testPhase3() {
     console.log(`- 総ツール数: ${allTools.length}個`);
     console.log(`- 総ハンドラー数: ${stats.totalHandlers}個`);
     console.log(`- カテゴリ数: ${Object.keys(toolsByCategory).length}個`);
-    console.log(`- 認証ツール: ${toolsByCategory['認証'].length}個`);
-    console.log(`- 取引ツール: ${toolsByCategory['取引'].length}個`);
-    console.log(`- 事業所ツール: ${toolsByCategory['事業所'].length}個`);
-    console.log(`- システムツール: ${toolsByCategory['システム'].length}個`);
+    console.log(`- 認証ツール: ${toolsByCategory['認証']?.length || 0}個`);
+    console.log(`- 取引ツール: ${toolsByCategory['取引']?.length || 0}個`);
+    console.log(`- 事業所ツール: ${toolsByCategory['事業所']?.length || 0}個`);
+    console.log(`- システムツール: ${toolsByCategory['システム']?.length || 0}個`);
 
   } catch (error) {
     console.error('❌ Phase 3 テストでエラーが発生しました:', error);

@@ -5,11 +5,18 @@
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
-import { BaseResourceHandler, ResourceInfo } from './base-resource-handler.js';
+import { BaseResourceHandler } from './base-resource-handler.js';
 import { MCPResourceResponse } from '../utils/response-builder.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
-import { FreeeClient } from '@mcp-server/shared';
+import { MCPResourceInfo } from '../types/mcp.js';
+import { Company } from '../types/domain.js';
+// import { FreeeClient } from '@mcp-server/shared';
+// 一時的な型定義
+interface FreeeClient {
+  getCompanies(): Promise<{ companies: any[] }>;
+  get(url: string): Promise<{ data: any }>;
+}
 
 /**
  * 事業所関連リソースハンドラー
@@ -28,9 +35,30 @@ export class CompaniesResourceHandler extends BaseResourceHandler {
   }
 
   /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'CompaniesResourceHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の事業所関連リソースを提供するハンドラー';
+  }
+
+  /**
+   * 指定されたURIをサポートするかチェック
+   */
+  supportsUri(uri: string): boolean {
+    return uri.startsWith('companies://');
+  }
+
+  /**
    * 処理可能なリソース情報を返す
    */
-  getResourceInfo(): ResourceInfo[] {
+  getResourceInfo(): MCPResourceInfo[] {
     return [
       {
         uri: 'companies://list',

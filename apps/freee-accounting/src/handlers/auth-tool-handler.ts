@@ -5,9 +5,11 @@
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
-import { BaseToolHandler, ToolInfo, ToolExecutionResult } from './base-tool-handler.js';
+import { BaseToolHandler } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { EnvironmentConfig } from '../config/environment-config.js';
+import { MCPToolInfo } from '../types/mcp.js';
+import { MCPToolResponse } from '../utils/response-builder.js';
 
 /**
  * 認証関連ツールハンドラー
@@ -26,6 +28,28 @@ export class AuthToolHandler extends BaseToolHandler {
   }
 
   /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'AuthToolHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の認証関連ツールを提供するハンドラー';
+  }
+
+  /**
+   * 指定されたツールをサポートするかチェック
+   */
+  supportsTool(name: string): boolean {
+    const supportedTools = ['get-auth-url', 'exchange-code', 'get-health'];
+    return supportedTools.includes(name);
+  }
+
+  /**
    * 認証が必要なツールかどうかを判定
    */
   protected requiresAuthentication(toolName: string): boolean {
@@ -36,7 +60,7 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * 処理可能なツール情報を返す
    */
-  getToolInfo(): ToolInfo[] {
+  getToolInfo(): MCPToolInfo[] {
     return [
       {
         name: 'generate-auth-url',
@@ -83,17 +107,17 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * ツールを実行
    */
-  async executeTool(name: string, args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  async executeTool(name: string, args: any): Promise<Result<MCPToolResponse, AppError>> {
     switch (name) {
       case 'generate-auth-url':
         return this.generateAuthUrl(args);
-      
+
       case 'exchange-auth-code':
         return this.exchangeAuthCode(args);
-      
+
       case 'check-auth-status':
         return this.checkAuthStatus();
-      
+
       default:
         return err(this.errorHandler.apiError(`Unknown tool: ${name}`, 404));
     }
@@ -102,15 +126,16 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * OAuth認証URLを生成
    */
-  private async generateAuthUrl(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async generateAuthUrl(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Generating OAuth auth URL', { args });
 
       const state = args?.state as string | undefined;
       const enableCompanySelection = args?.enable_company_selection !== false; // デフォルトtrue
 
-      const authUrlResult = this.authService.generateAuthUrl(state, enableCompanySelection);
-      
+      const redirectUri = this.envConfig.oauthConfig?.redirectUri || 'http://localhost:3000/callback';
+      const authUrlResult = this.authService.generateAuthUrl(redirectUri, state);
+
       if (authUrlResult.isErr()) {
         return this.createErrorResult(authUrlResult.error);
       }
@@ -134,7 +159,7 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * 認証コードをアクセストークンに交換
    */
-  private async exchangeAuthCode(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async exchangeAuthCode(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Exchanging auth code for tokens');
 
@@ -146,7 +171,7 @@ export class AuthToolHandler extends BaseToolHandler {
 
       const code = args.code as string;
       const tokensResult = await this.authService.exchangeAuthCode(code);
-      
+
       if (tokensResult.isErr()) {
         return this.createErrorResult(tokensResult.error);
       }
@@ -179,21 +204,21 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * 認証状態を確認
    */
-  private async checkAuthStatus(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async checkAuthStatus(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Checking authentication status');
 
       const authDetailsResult = this.authService.getAuthDetails();
-      
+
       if (authDetailsResult.isErr()) {
         // 認証エラーの場合でも、状態情報として返す
         const summary = this.authService.getAuthSummary();
         return this.createSuccessResult(
-          { 
-            isAuthenticated: false, 
+          {
+            isAuthenticated: false,
             error: authDetailsResult.error.message,
             authMode: 'none'
-          }, 
+          },
           summary
         );
       }
@@ -213,19 +238,19 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * トークンの有効期限をチェック
    */
-  async checkTokenExpiry(): Promise<Result<ToolExecutionResult, AppError>> {
+  async checkTokenExpiry(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.debug('Checking token expiry');
 
       const expiryResult = this.authService.checkTokenExpiry();
-      
+
       if (expiryResult.isErr()) {
         return this.createErrorResult(expiryResult.error);
       }
 
       const expiryInfo = expiryResult.value;
       let message = `トークン有効性: ${expiryInfo.isValid ? '有効' : '無効'}`;
-      
+
       if (expiryInfo.expiresIn !== undefined) {
         const hours = Math.floor(expiryInfo.expiresIn / 3600);
         const minutes = Math.floor((expiryInfo.expiresIn % 3600) / 60);
@@ -239,7 +264,7 @@ export class AuthToolHandler extends BaseToolHandler {
   /**
    * 認証設定の概要を取得
    */
-  async getAuthConfigSummary(): Promise<Result<ToolExecutionResult, AppError>> {
+  async getAuthConfigSummary(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.debug('Getting auth config summary');
 

@@ -15,9 +15,9 @@ import * as path from 'path';
  */
 export interface EnvironmentVariables {
   freee: {
-    accessToken?: string;
-    clientId?: string;
-    clientSecret?: string;
+    accessToken: string;
+    clientId: string;
+    clientSecret: string;
     redirectUri: string;
     baseUrl: string;
   };
@@ -41,7 +41,7 @@ export type AuthError =
  */
 @injectable()
 export class EnvironmentConfig {
-  private config: convict.Config<EnvironmentVariables>;
+  private config: ReturnType<typeof convict<EnvironmentVariables>>;
   private _oauthClient?: FreeeOAuthClient;
 
   constructor() {
@@ -151,6 +151,48 @@ export class EnvironmentConfig {
   }
 
   /**
+   * クライアントIDを取得
+   */
+  get clientId(): string {
+    return this.config.get('freee.clientId');
+  }
+
+  /**
+   * クライアントシークレットを取得
+   */
+  get clientSecret(): string {
+    return this.config.get('freee.clientSecret');
+  }
+
+  /**
+   * リダイレクトURIを取得
+   */
+  get redirectUri(): string {
+    return this.config.get('freee.redirectUri');
+  }
+
+  /**
+   * 認証モードを取得
+   */
+  get authMode(): string {
+    return this.useDirectToken ? 'direct' : 'oauth';
+  }
+
+  /**
+   * アクセストークンが設定されているかチェック
+   */
+  get hasAccessToken(): boolean {
+    return !!this.accessToken;
+  }
+
+  /**
+   * クライアントIDが設定されているかチェック
+   */
+  get hasClientId(): boolean {
+    return !!this.config.get('freee.clientId');
+  }
+
+  /**
    * OAuth設定を取得
    */
   get oauthConfig(): OAuthConfig | undefined {
@@ -175,6 +217,13 @@ export class EnvironmentConfig {
   }
 
   /**
+   * ベースURLを取得
+   */
+  get baseUrl(): string {
+    return this.config.get('freee.baseUrl');
+  }
+
+  /**
    * デバッグ設定を取得
    */
   get debugConfig() {
@@ -182,6 +231,13 @@ export class EnvironmentConfig {
       freeeApi: this.config.get('debug.freeeApi'),
       axios: this.config.get('debug.axios'),
     };
+  }
+
+  /**
+   * デバッグモードかどうかを判定
+   */
+  isDebugMode(): boolean {
+    return this.config.get('debug.freeeApi') || this.config.get('debug.axios');
   }
 
   /**
@@ -199,15 +255,18 @@ export class EnvironmentConfig {
       return ok(true);
     }
 
-    if (this.useOAuth) {
-      const config = this.oauthConfig;
-      if (!config?.clientId) {
+    // OAuth設定が部分的に存在するかチェック
+    const clientId = this.config.get('freee.clientId');
+    const clientSecret = this.config.get('freee.clientSecret');
+    
+    if (clientId || clientSecret) {
+      if (!clientId) {
         return err({
           type: 'MISSING_OAUTH_CONFIG',
           message: 'FREEE_CLIENT_ID が設定されていません'
         });
       }
-      if (!config?.clientSecret) {
+      if (!clientSecret) {
         return err({
           type: 'MISSING_OAUTH_CONFIG',
           message: 'FREEE_CLIENT_SECRET が設定されていません'
@@ -228,11 +287,14 @@ export class EnvironmentConfig {
   getSummary() {
     return {
       authMode: this.useDirectToken ? 'direct_token' : this.useOAuth ? 'oauth' : 'none',
+      useDirectToken: this.useDirectToken,
+      useOAuth: this.useOAuth,
       hasAccessToken: !!this.accessToken,
       hasClientId: !!this.config.get('freee.clientId'),
       hasClientSecret: !!this.config.get('freee.clientSecret'),
-      redirectUri: this.config.get('freee.redirectUri'),
+      hasOAuthConfig: this.useOAuth,
       baseUrl: this.config.get('freee.baseUrl'),
+      redirectUri: this.config.get('freee.redirectUri'),
       debug: this.debugConfig,
     };
   }

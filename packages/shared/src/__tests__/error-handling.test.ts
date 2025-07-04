@@ -22,7 +22,7 @@ describe('FreeeOAuthClient Error Handling', () => {
       baseUrl: 'https://api.freee.co.jp',
     };
     oauthClient = new FreeeOAuthClient(config);
-    
+
     // axios.create のモック
     mockedAxios.create.mockReturnValue(mockedAxios);
   });
@@ -50,7 +50,7 @@ describe('FreeeOAuthClient Error Handling', () => {
 
       await expect(oauthClient.exchangeCodeForTokens('invalid_code'))
         .rejects
-        .toThrow('Failed to exchange code for tokens: Invalid client credentials');
+        .toThrow('Failed to exchange code for tokens: ネットワークエラーまたはサーバーに接続できません');
     });
 
     it('should handle 400 bad request error', async () => {

@@ -3,12 +3,14 @@
  */
 
 import { injectable, inject } from 'inversify';
-import { Result } from 'neverthrow';
+import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
 import { AuthService } from '../services/auth-service.js';
 import { ResponseBuilder, MCPResourceResponse } from '../utils/response-builder.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { Logger } from '../infrastructure/logger.js';
+import { IResourceHandler } from '../interfaces/resource-handler.js';
+import { MCPResourceInfo } from '../types/mcp.js';
 
 /**
  * リソース情報の型定義
@@ -24,7 +26,7 @@ export interface ResourceInfo {
  * リソースハンドラーの基底クラス
  */
 @injectable()
-export abstract class BaseResourceHandler {
+export abstract class BaseResourceHandler implements IResourceHandler {
   constructor(
     @inject(TYPES.AuthService) protected authService: AuthService,
     @inject(TYPES.ResponseBuilder) protected responseBuilder: ResponseBuilder,
@@ -33,14 +35,29 @@ export abstract class BaseResourceHandler {
   ) {}
 
   /**
+   * ハンドラーの名前を取得（サブクラスで実装）
+   */
+  abstract getName(): string;
+
+  /**
+   * ハンドラーの説明を取得（サブクラスで実装）
+   */
+  abstract getDescription(): string;
+
+  /**
    * リソース情報を取得（サブクラスで実装）
    */
-  abstract getResourceInfo(): ResourceInfo[];
+  abstract getResourceInfo(): MCPResourceInfo[];
 
   /**
    * リソースを読み取り（サブクラスで実装）
    */
   abstract readResource(uri: string): Promise<Result<MCPResourceResponse, AppError>>;
+
+  /**
+   * 指定されたURIをサポートするかチェック（サブクラスで実装）
+   */
+  abstract supportsUri(uri: string): boolean;
 
   /**
    * 認証チェックを実行
@@ -170,15 +187,26 @@ export abstract class BaseResourceHandler {
       this.logger.debug(`Starting ${operationName}`, { handler: this.constructor.name });
       const result = await operation();
       this.logger.debug(`Completed ${operationName}`, { handler: this.constructor.name });
-      return this.errorHandler.wrapAsync(async () => result);
+      return ok(result);
     } catch (error) {
-      this.logger.error(`Failed ${operationName}`, { 
+      this.logger.error(`Failed ${operationName}`, {
         handler: this.constructor.name,
         error: error instanceof Error ? error.message : String(error)
       }, error instanceof Error ? error : undefined);
-      return this.errorHandler.wrapAsync(async () => {
-        throw error;
-      });
+
+      // AppErrorの場合は直接返す
+      if (this.isAppError(error)) {
+        return err(error);
+      }
+
+      return err(this.errorHandler.fromException(error));
     }
+  }
+
+  /**
+   * AppErrorかどうかを判定
+   */
+  private isAppError(error: any): error is AppError {
+    return error && typeof error === 'object' && 'type' in error && 'message' in error && 'retryable' in error;
   }
 }

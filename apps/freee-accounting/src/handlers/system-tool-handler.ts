@@ -5,11 +5,12 @@
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
-import { BaseToolHandler, ToolInfo, ToolExecutionResult } from './base-tool-handler.js';
+import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
 import { EnvironmentConfig } from '../config/environment-config.js';
 import { Logger } from '../infrastructure/logger.js';
+import { MCPToolResponse } from '../utils/response-builder.js';
 
 /**
  * システム関連ツールハンドラー
@@ -117,28 +118,57 @@ export class SystemToolHandler extends BaseToolHandler {
   }
 
   /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'SystemToolHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'システム管理とモニタリング機能を提供するツールハンドラー';
+  }
+
+  /**
+   * 指定されたツールをサポートするかチェック
+   */
+  supportsTool(name: string): boolean {
+    const supportedTools = [
+      'health-check',
+      'get-system-info',
+      'get-logs',
+      'get-metrics',
+      'clear-logs',
+      'set-log-level'
+    ];
+    return supportedTools.includes(name);
+  }
+
+  /**
    * ツールを実行
    */
-  async executeTool(name: string, args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  async executeTool(name: string, args: any): Promise<Result<MCPToolResponse, AppError>> {
     switch (name) {
       case 'health-check':
         return this.healthCheck();
-      
+
       case 'get-system-info':
         return this.getSystemInfo();
-      
+
       case 'get-logs':
         return this.getLogs(args);
-      
+
       case 'get-metrics':
         return this.getMetrics(args);
-      
+
       case 'clear-logs':
         return this.clearLogs();
-      
+
       case 'set-log-level':
         return this.setLogLevel(args);
-      
+
       default:
         return err(this.errorHandler.apiError(`Unknown tool: ${name}`, 404));
     }
@@ -147,7 +177,7 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * ヘルスチェックを実行
    */
-  private async healthCheck(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async healthCheck(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Performing health check');
 
@@ -188,7 +218,7 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * システム情報を取得
    */
-  private async getSystemInfo(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getSystemInfo(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting system info');
 
@@ -221,11 +251,12 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * ログを取得
    */
-  private async getLogs(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getLogs(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting logs', { args });
 
-      const level = args.level as 'error' | 'warn' | 'info' | 'debug' | undefined;
+      const levelString = args.level as 'error' | 'warn' | 'info' | 'debug' | undefined;
+      const level = levelString ? (levelString as any) : undefined;
       const limit = args.limit || 50;
 
       const logs = this.logger.getLogs(level, limit);
@@ -247,7 +278,7 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * メトリクスを取得
    */
-  private async getMetrics(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getMetrics(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting metrics', { args });
 
@@ -283,7 +314,7 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * ログをクリア
    */
-  private async clearLogs(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async clearLogs(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Clearing logs');
 
@@ -301,7 +332,7 @@ export class SystemToolHandler extends BaseToolHandler {
   /**
    * ログレベルを設定
    */
-  private async setLogLevel(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async setLogLevel(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Setting log level', { level: args.level });
 
@@ -311,14 +342,15 @@ export class SystemToolHandler extends BaseToolHandler {
         return this.createErrorResult(validationResult.error);
       }
 
-      const level = args.level as 'error' | 'warn' | 'info' | 'debug';
+      const levelString = args.level as 'error' | 'warn' | 'info' | 'debug';
+      const level = levelString as any;
       const oldLevel = this.logger.getLogLevel();
 
       this.logger.setLogLevel(level);
 
-      this.logger.info('Log level changed successfully', { 
-        oldLevel, 
-        newLevel: level 
+      this.logger.info('Log level changed successfully', {
+        oldLevel,
+        newLevel: level
       });
 
       return this.createSuccessResult(

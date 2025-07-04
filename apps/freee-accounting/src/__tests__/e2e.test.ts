@@ -2,6 +2,8 @@
  * E2Eテスト
  */
 
+export {};
+
 describe('E2Eテスト', () => {
   beforeEach(() => {
     // 環境変数を設定

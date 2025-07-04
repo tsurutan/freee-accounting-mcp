@@ -44,9 +44,10 @@ export class FreeeApiClient {
   constructor(
     @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
     @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
+    @inject(TYPES.DebugInterceptor) debugInterceptor: DebugInterceptor
   ) {
-    this.debugInterceptor = new DebugInterceptor(this.logger);
+    this.debugInterceptor = debugInterceptor;
     this.client = this.createFreeeClient();
   }
 
@@ -93,7 +94,7 @@ export class FreeeApiClient {
   ): Promise<Result<ApiCallResult<T>, AppError>> {
     const startTime = Date.now();
     const requestId = this.generateRequestId();
-    
+
     const callContext: ApiCallContext = {
       operation: context?.operation || 'api_call',
       method,
@@ -109,20 +110,20 @@ export class FreeeApiClient {
     });
 
     try {
-      let response;
-      
+      let responseData;
+
       switch (method) {
         case 'GET':
-          response = await this.client.get(endpoint, { params });
+          responseData = await this.client.get(endpoint, { params });
           break;
         case 'POST':
-          response = await this.client.post(endpoint, data, { params });
+          responseData = await this.client.post(endpoint, data, { params });
           break;
         case 'PUT':
-          response = await this.client.put(endpoint, data, { params });
+          responseData = await this.client.put(endpoint, data, { params });
           break;
         case 'DELETE':
-          response = await this.client.delete(endpoint, { params });
+          responseData = await this.client.delete(endpoint, { params });
           break;
         default:
           throw new Error(`Unsupported HTTP method: ${method}`);
@@ -130,24 +131,24 @@ export class FreeeApiClient {
 
       const duration = Date.now() - startTime;
       const result: ApiCallResult<T> = {
-        data: response.data,
-        status: response.status,
-        headers: response.headers,
+        data: responseData as T,
+        status: 200, // FreeeClientは成功時のみデータを返すため
+        headers: {}, // FreeeClientはヘッダー情報を返さないため
         duration,
         context: callContext,
       };
 
-      this.logger.apiRequest(method, endpoint, response.status, duration, {
+      this.logger.apiRequest(method, endpoint, 200, duration, {
         operation: callContext.operation,
         requestId,
-        dataSize: this.getDataSize(response.data),
+        dataSize: this.getDataSize(responseData),
       });
 
       return ok(result);
     } catch (error) {
       const duration = Date.now() - startTime;
       const appError = this.errorHandler.fromException(error);
-      
+
       this.logger.error('API call failed', {
         ...callContext,
         duration,
@@ -237,7 +238,7 @@ export class FreeeApiClient {
     if (config.accessToken) {
       this.client.setAccessToken(config.accessToken);
     }
-    
+
     if (config.oauthClient) {
       this.client.setOAuthClient(config.oauthClient);
     }
@@ -264,6 +265,86 @@ export class FreeeApiClient {
         error: result.error,
       });
       return err(result.error);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 事業所一覧を取得
+   */
+  async getCompanies(): Promise<{ companies: any[] }> {
+    this.logger.info('FreeeApiClient.getCompanies called');
+
+    const result = await this.get('/api/1/companies', undefined, {
+      operation: 'get_companies',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getCompanies success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+        data: result.value.data
+      });
+
+      // result.value.dataがfreee APIのレスポンス形式 { companies: [...] } の場合
+      if (result.value.data && typeof result.value.data === 'object' && 'companies' in result.value.data) {
+        return result.value.data;
+      }
+
+      // result.value.dataが配列の場合（予期しない形式）
+      if (Array.isArray(result.value.data)) {
+        return { companies: result.value.data };
+      }
+
+      // その他の場合はエラー
+      this.logger.error('Unexpected response format', { data: result.value.data });
+      throw new Error(`Unexpected response format: ${JSON.stringify(result.value.data)}`);
+    } else {
+      this.logger.error('FreeeApiClient.getCompanies failed', { error: result.error });
+      throw new Error(`Failed to get companies: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引一覧を取得
+   */
+  async getDeals(params: {
+    company_id: number;
+    start_issue_date?: string;
+    end_issue_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ deals: any[]; meta: { total_count: number } }> {
+    this.logger.info('FreeeApiClient.getDeals called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.start_issue_date) searchParams.append('start_issue_date', params.start_issue_date);
+    if (params.end_issue_date) searchParams.append('end_issue_date', params.end_issue_date);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.offset) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/deals?${searchParams.toString()}`, undefined, {
+      operation: 'get_deals',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getDeals success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+        data: result.value.data
+      });
+
+      // result.value.dataがfreee APIのレスポンス形式 { deals: [...], meta: {...} } の場合
+      if (result.value.data && typeof result.value.data === 'object' && 'deals' in result.value.data) {
+        return result.value.data;
+      }
+
+      // その他の場合はエラー
+      this.logger.error('Unexpected response format for deals', { data: result.value.data });
+      throw new Error(`Unexpected response format: ${JSON.stringify(result.value.data)}`);
+    } else {
+      this.logger.error('FreeeApiClient.getDeals failed', { error: result.error });
+      throw new Error(`Failed to get deals: ${result.error.message}`);
     }
   }
 }

@@ -30,7 +30,7 @@ export function isEmpty(value: string | null | undefined): boolean {
  * 数値が正の値かどうかをチェック
  */
 export function isPositiveNumber(value: number): boolean {
-  return typeof value === 'number' && value > 0;
+  return typeof value === 'number' && value > 0 && isFinite(value);
 }
 
 /**

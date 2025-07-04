@@ -44,7 +44,7 @@ export class TokenEncryption {
   encrypt(data: string): string {
     try {
       const iv = crypto.randomBytes(this.ivLength);
-      const cipher = crypto.createCipher(this.algorithm, this.key);
+      const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
 
       let encrypted = cipher.update(data, 'utf8', 'hex');
       encrypted += cipher.final('hex');
@@ -66,7 +66,7 @@ export class TokenEncryption {
       const iv = Buffer.from(parts[0] || '', 'hex');
       const encrypted = parts[1] || '';
 
-      const decipher = crypto.createDecipher(this.algorithm, this.key);
+      const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
 
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');

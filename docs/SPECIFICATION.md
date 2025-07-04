@@ -15,11 +15,47 @@ freee会計APIと連携するModel Context Protocol (MCP) Serverの技術仕様�
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
+### レイヤー構成
+
+クリーンアーキテクチャに基づく4層構成：
+
+#### 1. Presentation Layer (プレゼンテーション層)
+- **MCP Server**: Model Context Protocolの実装
+- **Handlers**: Tools/Resources/Promptsのハンドラー
+- **Middleware**: 認証、ログ、バリデーション
+
+#### 2. Application Layer (アプリケーション層)
+- **Use Cases**: ビジネスロジックの実装
+- **Services**: 認証、データ取得などのサービス
+- **Validators**: 入力値検証とビジネスルール
+
+#### 3. Infrastructure Layer (インフラ層)
+- **FreeeApiClient**: freee API通信の統一インターフェース
+- **ApiResponseMapper**: APIレスポンスの標準化・マッピング
+- **DebugInterceptor**: HTTP通信のデバッグ機能
+- **LoggerSetup**: ログ設定の管理
+
+#### 4. Domain Layer (ドメイン層)
+- **Entities**: 事業所、取引などのエンティティ
+- **Value Objects**: 金額、日付などの値オブジェクト
+- **Domain Rules**: ドメイン固有のバリデーション
+
 ### パッケージ構成
 
 - `apps/freee-accounting/`: MCP Server本体
 - `packages/types/`: 型定義
 - `packages/shared/`: 共通ライブラリ
+
+### 依存性注入
+
+InversifyJSによるDIコンテナを使用：
+
+```typescript
+// DIコンテナの設定例
+container.bind(TYPES.FreeeApiClient).to(FreeeApiClient).inSingletonScope();
+container.bind(TYPES.ApiResponseMapper).to(ApiResponseMapper).inSingletonScope();
+container.bind(TYPES.DebugInterceptor).to(DebugInterceptor).inSingletonScope();
+```
 
 ## API仕様
 
@@ -182,6 +218,148 @@ interface FreeeApiError {
 - 単体テスト
 - 統合テスト
 - E2Eテスト
+
+## インフラ層詳細仕様
+
+### FreeeApiClient
+
+freee APIとの通信を担当する統一インターフェース：
+
+```typescript
+interface FreeeApiClient {
+  // 汎用API呼び出し
+  call<T>(method: string, endpoint: string, params?: any, data?: any): Promise<Result<ApiCallResult<T>, AppError>>;
+
+  // HTTP メソッド別
+  get<T>(endpoint: string, params?: any): Promise<Result<ApiCallResult<T>, AppError>>;
+  post<T>(endpoint: string, data?: any, params?: any): Promise<Result<ApiCallResult<T>, AppError>>;
+  put<T>(endpoint: string, data?: any, params?: any): Promise<Result<ApiCallResult<T>, AppError>>;
+  delete<T>(endpoint: string, params?: any): Promise<Result<ApiCallResult<T>, AppError>>;
+
+  // 設定管理
+  updateConfig(config: Partial<FreeeClientConfig>): void;
+  testConnection(): Promise<Result<boolean, AppError>>;
+}
+```
+
+**主要機能:**
+- レート制限の自動管理
+- リトライ機能（指数バックオフ）
+- レスポンスキャッシュ
+- デバッグインターセプターの統合
+- リクエスト/レスポンスのログ出力
+
+### ApiResponseMapper
+
+freee APIレスポンスの標準化とマッピング：
+
+```typescript
+interface ApiResponseMapper {
+  mapResponse<T>(apiResult: ApiCallResult, options?: MappingConfig): Result<MappedResponse<T>, AppError>;
+  updateConfig(config: Partial<MappingConfig>): void;
+}
+
+interface MappedResponse<T> {
+  data: T;
+  metadata?: {
+    timestamp: string;
+    status: number;
+    duration: number;
+    requestId?: string;
+  };
+  pagination?: {
+    total?: number;
+    page?: number;
+    perPage?: number;
+    hasNext?: boolean;
+    hasPrev?: boolean;
+  };
+}
+```
+
+**主要機能:**
+- freee API固有のデータ構造の正規化
+- 型安全なデータ変換
+- ページネーション情報の抽出
+- 日付・数値フォーマットの統一
+- メタデータの付与
+
+### DebugInterceptor
+
+HTTP通信のデバッグ機能：
+
+```typescript
+interface DebugInterceptor {
+  setupInterceptors(client: FreeeClient): void;
+  updateConfig(config: Partial<DebugConfig>): void;
+  getDebugStats(): Record<string, any>;
+}
+
+interface DebugConfig {
+  enableFreeeApi: boolean;
+  enableAxios: boolean;
+  enableMcpInspector: boolean;
+  maxDataLength: number;
+  maskSensitiveData: boolean;
+}
+```
+
+**主要機能:**
+- リクエスト/レスポンスの詳細ログ
+- MCP Inspector対応
+- 機密情報の自動マスキング
+- データサイズ制限
+- 環境変数による設定切り替え
+
+### LoggerSetup
+
+ログ設定の統合管理：
+
+```typescript
+interface LoggerSetup {
+  setupLogger(profileName?: string): Logger;
+  setupCustomLogger(config: Partial<LoggerConfig>): Logger;
+  getAvailableProfiles(): LogProfile[];
+  autoDetectProfile(): string;
+  validateConfig(config: LoggerConfig): ValidationResult;
+}
+```
+
+**利用可能なプロファイル:**
+- `development`: 開発環境用（詳細ログ）
+- `production`: 本番環境用（最小限ログ）
+- `test`: テスト環境用（構造化ログ）
+- `mcp-inspector`: MCP Inspector用
+- `debug`: デバッグ用（最大詳細度）
+- `silent`: 静寂モード（エラーのみ）
+
+## エラーハンドリング仕様
+
+### Result型パターン
+
+```typescript
+type Result<T, E> = Ok<T> | Err<E>;
+
+// 使用例
+const result = await apiClient.get('/api/1/companies');
+if (result.isOk()) {
+  console.log(result.value.data);
+} else {
+  console.error(result.error.message);
+}
+```
+
+### AppError型
+
+```typescript
+interface AppError {
+  code: string;
+  message: string;
+  details?: any;
+  retryable: boolean;
+  statusCode?: number;
+}
+```
 
 ## 今後の拡張予定
 

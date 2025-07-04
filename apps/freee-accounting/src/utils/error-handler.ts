@@ -8,14 +8,14 @@ import { Result, ok, err } from 'neverthrow';
 /**
  * アプリケーションエラーの型定義
  */
-export type AppError = 
-  | { type: 'AUTH_ERROR'; message: string; retryable: boolean }
-  | { type: 'API_ERROR'; message: string; status?: number; retryable: boolean }
-  | { type: 'VALIDATION_ERROR'; message: string; field?: string; retryable: false }
-  | { type: 'NETWORK_ERROR'; message: string; retryable: boolean }
-  | { type: 'INTERNAL_ERROR'; message: string; retryable: false }
-  | { type: 'NOT_FOUND_ERROR'; message: string; retryable: false }
-  | { type: 'RATE_LIMIT_ERROR'; message: string; retryAfter?: number; retryable: true };
+export type AppError =
+  | { type: 'AUTH_ERROR'; message: string; retryable: boolean; originalError?: any }
+  | { type: 'API_ERROR'; message: string; status?: number; retryable: boolean; originalError?: any }
+  | { type: 'VALIDATION_ERROR'; message: string; field?: string; retryable: false; originalError?: any }
+  | { type: 'NETWORK_ERROR'; message: string; retryable: boolean; originalError?: any }
+  | { type: 'INTERNAL_ERROR'; message: string; retryable: false; originalError?: any }
+  | { type: 'NOT_FOUND_ERROR'; message: string; retryable: false; originalError?: any }
+  | { type: 'RATE_LIMIT_ERROR'; message: string; retryAfter?: number; retryable: true; originalError?: any };
 
 /**
  * MCPレスポンス用のエラー情報
@@ -44,7 +44,7 @@ export class ErrorHandler {
       if ('response' in error && error.response) {
         const response = error.response as any;
         const status = response.status;
-        
+
         if (status === 401) {
           return {
             type: 'AUTH_ERROR',
@@ -52,7 +52,7 @@ export class ErrorHandler {
             retryable: false,
           };
         }
-        
+
         if (status === 403) {
           return {
             type: 'AUTH_ERROR',
@@ -60,7 +60,7 @@ export class ErrorHandler {
             retryable: false,
           };
         }
-        
+
         if (status === 404) {
           return {
             type: 'NOT_FOUND_ERROR',
@@ -68,7 +68,7 @@ export class ErrorHandler {
             retryable: false,
           };
         }
-        
+
         if (status === 429) {
           const retryAfter = response.headers?.['retry-after'];
           return {
@@ -78,7 +78,7 @@ export class ErrorHandler {
             retryable: true,
           };
         }
-        
+
         if (status >= 500) {
           return {
             type: 'API_ERROR',
@@ -87,7 +87,7 @@ export class ErrorHandler {
             retryable: true,
           };
         }
-        
+
         return {
           type: 'API_ERROR',
           message: `APIエラー: ${error.message}`,
@@ -95,7 +95,7 @@ export class ErrorHandler {
           retryable: false,
         };
       }
-      
+
       // ネットワークエラーの処理
       if ('code' in error && (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND')) {
         return {
@@ -104,7 +104,7 @@ export class ErrorHandler {
           retryable: true,
         };
       }
-      
+
       // その他のエラー
       return {
         type: 'INTERNAL_ERROR',
@@ -112,7 +112,7 @@ export class ErrorHandler {
         retryable: false,
       };
     }
-    
+
     // 不明なエラー
     return {
       type: 'INTERNAL_ERROR',
@@ -137,7 +137,7 @@ export class ErrorHandler {
           error: '認証エラー',
           message: error.message,
         };
-      
+
       case 'API_ERROR':
         return {
           ...baseError,
@@ -145,7 +145,7 @@ export class ErrorHandler {
           message: error.message,
           status: error.status,
         };
-      
+
       case 'VALIDATION_ERROR':
         return {
           ...baseError,
@@ -153,21 +153,21 @@ export class ErrorHandler {
           message: error.message,
           field: error.field,
         };
-      
+
       case 'NETWORK_ERROR':
         return {
           ...baseError,
           error: 'ネットワークエラー',
           message: error.message,
         };
-      
+
       case 'NOT_FOUND_ERROR':
         return {
           ...baseError,
           error: 'リソースが見つかりません',
           message: error.message,
         };
-      
+
       case 'RATE_LIMIT_ERROR':
         return {
           ...baseError,
@@ -175,7 +175,7 @@ export class ErrorHandler {
           message: error.message,
           retryAfter: error.retryAfter,
         };
-      
+
       case 'INTERNAL_ERROR':
       default:
         return {
@@ -247,5 +247,24 @@ export class ErrorHandler {
       status,
       retryable,
     };
+  }
+
+  /**
+   * システムエラーを作成
+   */
+  systemError(message: string, error?: any): AppError {
+    return {
+      type: 'INTERNAL_ERROR',
+      message,
+      retryable: false,
+      originalError: error,
+    };
+  }
+
+  /**
+   * エラーを処理してAppErrorに変換
+   */
+  handleError(error: any): AppError {
+    return this.fromException(error);
   }
 }

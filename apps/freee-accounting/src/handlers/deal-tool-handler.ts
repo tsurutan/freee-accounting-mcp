@@ -5,11 +5,12 @@
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
-import { BaseToolHandler, ToolInfo, ToolExecutionResult } from './base-tool-handler.js';
+import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
 import { DateUtils } from '../utils/date-utils.js';
 import { CreateDealDto, UpdateDealDto, GetDealsDto } from '../utils/validator.js';
+import { MCPToolResponse } from '../utils/response-builder.js';
 
 // 一時的な型定義
 interface FreeeClient {
@@ -227,25 +228,53 @@ export class DealToolHandler extends BaseToolHandler {
   }
 
   /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'DealToolHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の取引データを管理するツールハンドラー';
+  }
+
+  /**
+   * 指定されたツールをサポートするかチェック
+   */
+  supportsTool(name: string): boolean {
+    const supportedTools = [
+      'get-deals',
+      'get-deal-details',
+      'create-deal',
+      'update-deal',
+      'delete-deal'
+    ];
+    return supportedTools.includes(name);
+  }
+
+  /**
    * ツールを実行
    */
-  async executeTool(name: string, args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  async executeTool(name: string, args: any): Promise<Result<MCPToolResponse, AppError>> {
     switch (name) {
       case 'get-deals':
         return this.getDeals(args);
-      
+
       case 'get-deal-details':
         return this.getDealDetails(args);
-      
+
       case 'create-deal':
         return this.createDeal(args);
-      
+
       case 'update-deal':
         return this.updateDeal(args);
-      
+
       case 'delete-deal':
         return this.deleteDeal(args);
-      
+
       default:
         return err(this.errorHandler.apiError(`Unknown tool: ${name}`, 404));
     }
@@ -254,17 +283,17 @@ export class DealToolHandler extends BaseToolHandler {
   /**
    * 取引一覧を取得
    */
-  private async getDeals(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getDeals(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting deals list', { args });
 
       // 引数の検証とDTO作成
       const getDealsDto = new GetDealsDto();
       Object.assign(getDealsDto, args);
-      
+
       const validationResult = await this.validator.validateDto(getDealsDto);
       if (validationResult.isErr()) {
-        return this.createErrorResult(validationResult.error);
+        throw validationResult.error;
       }
 
       const companyId = this.appConfig.companyId;
@@ -275,7 +304,7 @@ export class DealToolHandler extends BaseToolHandler {
       if (args.year && args.month) {
         const yearMonthValidation = this.validator.validateYearMonth(args.year, args.month);
         if (yearMonthValidation.isErr()) {
-          return this.createErrorResult(yearMonthValidation.error);
+          throw yearMonthValidation.error;
         }
         const dateRange = this.dateUtils.getMonthDateRange(args.year, args.month);
         startDate = dateRange.startDate;
@@ -283,8 +312,8 @@ export class DealToolHandler extends BaseToolHandler {
       } else if (args.start_date && args.end_date) {
         const startValidation = this.validator.validateDateString(args.start_date);
         const endValidation = this.validator.validateDateString(args.end_date);
-        if (startValidation.isErr()) return this.createErrorResult(startValidation.error);
-        if (endValidation.isErr()) return this.createErrorResult(endValidation.error);
+        if (startValidation.isErr()) throw startValidation.error;
+        if (endValidation.isErr()) throw endValidation.error;
         startDate = args.start_date;
         endDate = args.end_date;
       } else {
@@ -328,14 +357,14 @@ export class DealToolHandler extends BaseToolHandler {
   /**
    * 取引詳細を取得
    */
-  private async getDealDetails(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getDealDetails(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting deal details', { dealId: args.deal_id });
 
       // 引数の検証
       const validationResult = this.validateRequiredFields(args, ['deal_id']);
       if (validationResult.isErr()) {
-        return this.createErrorResult(validationResult.error);
+        throw validationResult.error;
       }
 
       const companyId = this.appConfig.companyId;
@@ -358,23 +387,23 @@ export class DealToolHandler extends BaseToolHandler {
   /**
    * 取引を作成
    */
-  private async createDeal(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async createDeal(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Creating deal', { args });
 
       // DTOの作成と検証
       const createDealDto = new CreateDealDto();
       Object.assign(createDealDto, args);
-      
+
       const validationResult = await this.validator.validateDto(createDealDto);
       if (validationResult.isErr()) {
-        return this.createErrorResult(validationResult.error);
+        throw validationResult.error;
       }
 
       // 取引明細の貸借バランス検証
       const balanceValidation = this.validator.validateDealBalance(createDealDto.details);
       if (balanceValidation.isErr()) {
-        return this.createErrorResult(balanceValidation.error);
+        throw balanceValidation.error;
       }
 
       const companyId = this.appConfig.companyId;
@@ -390,7 +419,7 @@ export class DealToolHandler extends BaseToolHandler {
       });
 
       return this.createSuccessResult(
-        createdDeal, 
+        createdDeal,
         `取引を作成しました。\n取引ID: ${createdDeal?.id}\n取引タイプ: ${createdDeal?.type}\n金額: ${createdDeal?.amount}`
       );
     }, 'createDeal');
@@ -399,24 +428,24 @@ export class DealToolHandler extends BaseToolHandler {
   /**
    * 取引を更新
    */
-  private async updateDeal(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async updateDeal(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Updating deal', { dealId: args.deal_id });
 
       // DTOの作成と検証
       const updateDealDto = new UpdateDealDto();
       Object.assign(updateDealDto, args);
-      
+
       const validationResult = await this.validator.validateDto(updateDealDto);
       if (validationResult.isErr()) {
-        return this.createErrorResult(validationResult.error);
+        throw validationResult.error;
       }
 
       // 取引明細がある場合は貸借バランス検証
       if (updateDealDto.details && updateDealDto.details.length > 0) {
         const balanceValidation = this.validator.validateDealBalance(updateDealDto.details);
         if (balanceValidation.isErr()) {
-          return this.createErrorResult(balanceValidation.error);
+          throw balanceValidation.error;
         }
       }
 
@@ -434,7 +463,7 @@ export class DealToolHandler extends BaseToolHandler {
       });
 
       return this.createSuccessResult(
-        updatedDeal, 
+        updatedDeal,
         `取引を更新しました。\n取引ID: ${dealId}\n取引タイプ: ${updatedDeal?.type}`
       );
     }, 'updateDeal');
@@ -443,14 +472,14 @@ export class DealToolHandler extends BaseToolHandler {
   /**
    * 取引を削除
    */
-  private async deleteDeal(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async deleteDeal(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Deleting deal', { dealId: args.deal_id });
 
       // 引数の検証
       const validationResult = this.validateRequiredFields(args, ['deal_id']);
       if (validationResult.isErr()) {
-        return this.createErrorResult(validationResult.error);
+        throw validationResult.error;
       }
 
       const companyId = this.appConfig.companyId;
@@ -462,7 +491,7 @@ export class DealToolHandler extends BaseToolHandler {
       this.logger.info('Deal deleted successfully', { dealId });
 
       return this.createSuccessResult(
-        { deal_id: dealId }, 
+        { deal_id: dealId },
         `取引を削除しました。\n取引ID: ${dealId}`
       );
     }, 'deleteDeal');

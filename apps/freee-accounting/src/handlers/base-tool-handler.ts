@@ -3,13 +3,15 @@
  */
 
 import { injectable, inject } from 'inversify';
-import { Result } from 'neverthrow';
+import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
 import { AuthService } from '../services/auth-service.js';
 import { ResponseBuilder, MCPToolResponse } from '../utils/response-builder.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { Logger } from '../infrastructure/logger.js';
 import { Validator } from '../utils/validator.js';
+import { IToolHandler } from '../interfaces/tool-handler.js';
+import { MCPToolInfo } from '../types/mcp.js';
 
 /**
  * ツール情報の型定義
@@ -21,20 +23,10 @@ export interface ToolInfo {
 }
 
 /**
- * ツール実行結果の型定義
- */
-export interface ToolExecutionResult {
-  success: boolean;
-  data?: any;
-  message?: string;
-  error?: AppError;
-}
-
-/**
  * ツールハンドラーの基底クラス
  */
 @injectable()
-export abstract class BaseToolHandler {
+export abstract class BaseToolHandler implements IToolHandler {
   constructor(
     @inject(TYPES.AuthService) protected authService: AuthService,
     @inject(TYPES.ResponseBuilder) protected responseBuilder: ResponseBuilder,
@@ -44,14 +36,29 @@ export abstract class BaseToolHandler {
   ) {}
 
   /**
+   * ハンドラーの名前を取得（サブクラスで実装）
+   */
+  abstract getName(): string;
+
+  /**
+   * ハンドラーの説明を取得（サブクラスで実装）
+   */
+  abstract getDescription(): string;
+
+  /**
    * ツール情報を取得（サブクラスで実装）
    */
-  abstract getToolInfo(): ToolInfo[];
+  abstract getToolInfo(): MCPToolInfo[];
 
   /**
    * ツールを実行（サブクラスで実装）
    */
-  abstract executeTool(name: string, args: any): Promise<Result<ToolExecutionResult, AppError>>;
+  abstract executeTool(name: string, args: any): Promise<Result<MCPToolResponse, AppError>>;
+
+  /**
+   * 指定されたツールをサポートするかチェック（サブクラスで実装）
+   */
+  abstract supportsTool(name: string): boolean;
 
   /**
    * 認証チェックを実行
@@ -59,8 +66,8 @@ export abstract class BaseToolHandler {
   protected checkAuthentication(): Result<boolean, AppError> {
     const authResult = this.authService.checkAuthenticationStatus();
     if (authResult.isErr()) {
-      this.logger.warn('Tool execution denied: authentication required', { 
-        handler: this.constructor.name 
+      this.logger.warn('Tool execution denied: authentication required', {
+        handler: this.constructor.name
       });
       return authResult.map(() => false);
     }
@@ -96,10 +103,10 @@ export abstract class BaseToolHandler {
    */
   async handleToolExecution(name: string, args: any): Promise<MCPToolResponse> {
     const startTime = Date.now();
-    
+
     try {
-      this.logger.info('Executing tool', { 
-        toolName: name, 
+      this.logger.info('Executing tool', {
+        toolName: name,
         handler: this.constructor.name,
         argsProvided: !!args
       });
@@ -119,25 +126,8 @@ export abstract class BaseToolHandler {
       const duration = Date.now() - startTime;
 
       if (result.isOk()) {
-        const executionResult = result.value;
-        this.logOperation('execute', name, duration, executionResult.success, args);
-        
-        if (executionResult.success) {
-          if (executionResult.data) {
-            return this.responseBuilder.toolSuccessWithData(
-              executionResult.data, 
-              executionResult.message
-            );
-          } else {
-            return this.responseBuilder.toolSuccess(
-              executionResult.message || 'ツールが正常に実行されました'
-            );
-          }
-        } else {
-          return this.responseBuilder.toolError(
-            executionResult.error || this.errorHandler.apiError('ツール実行に失敗しました')
-          );
-        }
+        this.logOperation('execute', name, duration, true, args);
+        return result.value;
       } else {
         this.logOperation('execute', name, duration, false, args);
         return this.responseBuilder.toolError(result.error);
@@ -177,10 +167,10 @@ export abstract class BaseToolHandler {
     for (const field of requiredFields) {
       const result = this.validator.validateRequired(args[field], field);
       if (result.isErr()) {
-        return result.map(() => false);
+        return err(result.error);
       }
     }
-    return this.errorHandler.wrapSync(() => true);
+    return ok(true);
   }
 
   /**
@@ -194,57 +184,62 @@ export abstract class BaseToolHandler {
       this.logger.debug(`Starting ${operationName}`, { handler: this.constructor.name });
       const result = await operation();
       this.logger.debug(`Completed ${operationName}`, { handler: this.constructor.name });
-      return this.errorHandler.wrapAsync(async () => result);
+      return ok(result);
     } catch (error) {
-      this.logger.error(`Failed ${operationName}`, { 
+      this.logger.error(`Failed ${operationName}`, {
         handler: this.constructor.name,
         error: error instanceof Error ? error.message : String(error)
       }, error instanceof Error ? error : undefined);
-      return this.errorHandler.wrapAsync(async () => {
-        throw error;
-      });
+
+      // AppErrorの場合は直接返す
+      if (this.isAppError(error)) {
+        return err(error);
+      }
+
+      return err(this.errorHandler.fromException(error));
     }
+  }
+
+  /**
+   * AppErrorかどうかを判定
+   */
+  private isAppError(error: any): error is AppError {
+    return error && typeof error === 'object' && 'type' in error && 'message' in error && 'retryable' in error;
   }
 
   /**
    * 成功結果を作成
    */
-  protected createSuccessResult(data?: any, message?: string): ToolExecutionResult {
-    return {
-      success: true,
-      data,
-      message,
-    };
+  protected createSuccessResult(data?: any, message?: string): MCPToolResponse {
+    if (data) {
+      return this.responseBuilder.toolSuccessWithData(data, message);
+    } else {
+      return this.responseBuilder.toolSuccess(message || 'ツールが正常に実行されました');
+    }
   }
 
   /**
    * エラー結果を作成
    */
-  protected createErrorResult(error: AppError, message?: string): ToolExecutionResult {
-    return {
-      success: false,
-      error,
-      message,
-    };
+  protected createErrorResult(error: AppError, message?: string): MCPToolResponse {
+    return this.responseBuilder.toolError(error);
   }
 
   /**
    * バリデーションエラー結果を作成
    */
-  protected createValidationErrorResult(message: string, field?: string): ToolExecutionResult {
-    return this.createErrorResult(
-      this.errorHandler.validationError(message, field),
-      message
+  protected createValidationErrorResult(message: string, field?: string): MCPToolResponse {
+    return this.responseBuilder.toolError(
+      this.errorHandler.validationError(message, field)
     );
   }
 
   /**
    * 認証エラー結果を作成
    */
-  protected createAuthErrorResult(message?: string): ToolExecutionResult {
-    return this.createErrorResult(
-      this.errorHandler.authError(message || '認証が必要です'),
-      message
+  protected createAuthErrorResult(message?: string): MCPToolResponse {
+    return this.responseBuilder.toolError(
+      this.errorHandler.authError(message || '認証が必要です')
     );
   }
 }

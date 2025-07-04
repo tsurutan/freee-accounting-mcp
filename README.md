@@ -119,7 +119,103 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 - 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
 - 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
 
-## 使用方法
+## Claude Codeでの使用方法
+
+このMCPサーバーをClaude Codeで使用するには、以下の手順でインストールしてください：
+
+### 1. MCP設定の追加
+
+Claude Codeの設定ファイルに以下を追加します：
+
+```bash
+# MacOS/Linux
+claude mcp install local /path/to/your/mcp-server/apps/freee-accounting
+
+# または、グローバルインストール後
+claude mcp install npm freee-accounting-mcp
+```
+
+### 2. 設定ファイルの確認
+
+Claude Codeが自動的に作成する設定ファイルを確認します：
+
+```json
+{
+  "mcpServers": {
+    "freee-accounting": {
+      "command": "node",
+      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
+      "env": {
+        "FREEE_ACCESS_TOKEN": "your_access_token"
+      }
+    }
+  }
+}
+```
+
+### 3. 環境変数の設定
+
+使用する認証方式に応じて、MCPサーバーの設定に環境変数を追加します：
+
+**直接トークン認証の場合:**
+```json
+{
+  "mcpServers": {
+    "freee-accounting": {
+      "command": "node",
+      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
+      "env": {
+        "FREEE_ACCESS_TOKEN": "your_access_token",
+        "FREEE_API_BASE_URL": "https://api.freee.co.jp"
+      }
+    }
+  }
+}
+```
+
+**OAuth認証の場合:**
+```json
+{
+  "mcpServers": {
+    "freee-accounting": {
+      "command": "node",
+      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
+      "env": {
+        "FREEE_CLIENT_ID": "your_client_id",
+        "FREEE_CLIENT_SECRET": "your_client_secret",
+        "FREEE_REDIRECT_URI": "http://localhost:3000/callback",
+        "FREEE_API_BASE_URL": "https://api.freee.co.jp"
+      }
+    }
+  }
+}
+```
+
+### 4. Claude Codeでの使用
+
+MCPサーバーがインストールされると、Claude Codeで以下のリソースとツールが利用できます：
+
+- **会計データの取得**: 取引、勘定科目、取引先などの情報
+- **取引の作成・更新**: 新規取引の入力や既存取引の修正
+- **試算表の分析**: 月次・年次の財務データの分析
+- **認証管理**: freee APIへの認証とアクセス管理
+
+### 5. 使用例
+
+Claude Codeで以下のようにMCPサーバーを活用できます：
+
+```
+# 取引データの取得
+"12月の売上取引を確認してください"
+
+# 新規取引の作成
+"消耗品費として3000円の取引を作成してください"
+
+# 試算表の分析
+"今月の損益計算書を分析してください"
+```
+
+## 従来の使用方法
 
 ### 認証の設定
 
@@ -208,6 +304,100 @@ get-deals --start_date 2024-12-01 --end_date 2024-12-31
 
 # 取引の作成（事業所ID自動設定）
 create-deal
+```
+
+## アーキテクチャ
+
+### レイヤー構成
+
+このプロジェクトは、クリーンアーキテクチャの原則に基づいて設計されています：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Presentation Layer                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   MCP Server    │  │   Handlers      │  │   Middleware    │ │
+│  │   (Express)     │  │   (Tools/Res)   │  │   (Auth/Log)    │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                   Application Layer                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   Use Cases     │  │   Services      │  │   Validators    │ │
+│  │   (Business)    │  │   (Auth/Data)   │  │   (Input/Rule)  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                  Infrastructure Layer                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │  API Client     │  │  Response       │  │  Debug/Log      │ │
+│  │  (freee API)    │  │  Mapper         │  │  (Interceptor)  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                     Domain Layer                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │   Entities      │  │   Value Objects │  │   Domain Rules  │ │
+│  │   (Company/Deal)│  │   (Money/Date)  │  │   (Validation)  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### インフラ層の主要コンポーネント
+
+#### FreeeApiClient
+- freee APIとの通信を担当する統一インターフェース
+- レート制限、リトライ、キャッシュ機能を内蔵
+- デバッグ機能とログ機能を統合
+
+#### ApiResponseMapper
+- freee APIレスポンスの標準化とマッピング
+- 型安全なデータ変換
+- ページネーション情報の抽出
+
+#### DebugInterceptor
+- HTTP リクエスト/レスポンスのデバッグ出力
+- MCP Inspector対応
+- 機密情報のマスキング機能
+
+#### LoggerSetup
+- 環境別ログ設定の管理
+- プロファイルベースの設定切り替え
+- 構造化ログとファイル出力
+
+### 依存性注入
+
+InversifyJSを使用したDIコンテナにより、各レイヤー間の疎結合を実現：
+
+```typescript
+// 例: サービスクラスでの依存性注入
+@injectable()
+export class AuthService {
+  constructor(
+    @inject(TYPES.FreeeApiClient) private apiClient: FreeeApiClient,
+    @inject(TYPES.Logger) private logger: Logger,
+    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+  ) {}
+}
+```
+
+### エラーハンドリング
+
+Result型パターンを採用し、型安全なエラーハンドリングを実現：
+
+```typescript
+// 成功・失敗を明示的に表現
+const result = await authService.authenticate(token);
+if (result.isOk()) {
+  // 成功時の処理
+  console.log(result.value);
+} else {
+  // エラー時の処理
+  console.error(result.error);
+}
 ```
 
 ## 開発

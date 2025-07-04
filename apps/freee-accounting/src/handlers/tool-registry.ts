@@ -189,13 +189,13 @@ export class ToolRegistry {
       const handlerName = handler.constructor.name;
 
       if (handlerName.includes('Auth')) {
-        categories['認証'].push(...tools);
+        categories['認証']?.push(...tools);
       } else if (handlerName.includes('Deal')) {
-        categories['取引'].push(...tools);
+        categories['取引']?.push(...tools);
       } else if (handlerName.includes('Company')) {
-        categories['事業所'].push(...tools);
+        categories['事業所']?.push(...tools);
       } else if (handlerName.includes('System')) {
-        categories['システム'].push(...tools);
+        categories['システム']?.push(...tools);
       }
     }
 

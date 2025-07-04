@@ -8,6 +8,9 @@ import { TYPES } from '../container/types.js';
 import { EnvironmentConfig, AuthError } from '../config/environment-config.js';
 import { Logger } from '../infrastructure/logger.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
+import { IAuthService, ServiceHealthStatus } from '../interfaces/service.js';
+import { OAuthTokenResponse, AuthContext } from '../types/api.js';
+import { OAuthTokens } from '@mcp-server/types';
 
 /**
  * 認証状態の型定義
@@ -16,7 +19,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   authMode: 'direct_token' | 'oauth' | 'none';
   expiresAt?: number;
-  companyId?: number;
+  companyId?: string | number;
   externalCid?: string;
   scope?: string;
   tokens?: any;
@@ -34,12 +37,62 @@ export interface AuthResult {
  * 認証サービスクラス
  */
 @injectable()
-export class AuthService {
+export class AuthService implements IAuthService {
   constructor(
     @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
     @inject(TYPES.Logger) private logger: Logger,
     @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
   ) {}
+
+  /**
+   * サービスの名前を取得
+   */
+  getName(): string {
+    return 'AuthService';
+  }
+
+  /**
+   * サービスの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の認証機能を提供するサービス';
+  }
+
+  /**
+   * サービスの健全性をチェック
+   */
+  async healthCheck(): Promise<Result<ServiceHealthStatus, AppError>> {
+    try {
+      const authState = this.checkAuthenticationStatus();
+      const status: ServiceHealthStatus = {
+        status: authState.isOk() ? 'healthy' : 'degraded',
+        message: authState.isOk() ? '認証サービスは正常です' : '認証に問題があります',
+        details: {
+          authMode: this.envConfig.authMode,
+          hasAccessToken: this.envConfig.hasAccessToken,
+          hasClientId: this.envConfig.hasClientId,
+        },
+        timestamp: new Date(),
+      };
+      return ok(status);
+    } catch (error) {
+      return err(this.errorHandler.systemError('認証サービスのヘルスチェックに失敗しました', error));
+    }
+  }
+
+  /**
+   * サービスの統計情報を取得
+   */
+  async getStats(): Promise<any> {
+    return {
+      totalRequests: 0, // 実装時に追加
+      successfulRequests: 0,
+      failedRequests: 0,
+      averageResponseTime: 0,
+      errorRate: 0,
+      lastRequestAt: null,
+    };
+  }
 
   /**
    * 認証状態をチェック
@@ -66,7 +119,7 @@ export class AuthService {
     if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
       // OAuth認証の場合
       const authState = this.envConfig.oauthClient.getAuthState();
-      
+
       if (!authState.isAuthenticated) {
         const authError = this.errorHandler.authError(
           'OAuth認証が必要です。generate-auth-url ツールを使用して認証を開始してください'
@@ -84,11 +137,11 @@ export class AuthService {
         isAuthenticated: true,
         authMode: 'oauth',
         expiresAt: authState.expiresAt,
-        companyId: this.envConfig.oauthClient.getCompanyId(),
+        companyId: this.envConfig.oauthClient.getCompanyId() || undefined,
         externalCid: this.envConfig.oauthClient.getExternalCid(),
         scope: authState.tokens?.scope,
         tokens: authState.tokens,
-      });
+      } as AuthState);
     }
 
     // 認証設定が不正
@@ -110,7 +163,7 @@ export class AuthService {
   /**
    * OAuth認証URLを生成
    */
-  generateAuthUrl(state?: string, enableCompanySelection: boolean = true): Result<string, AppError> {
+  generateAuthUrl(redirectUri: string, state?: string): Result<string, AppError> {
     if (!this.envConfig.useOAuth || !this.envConfig.oauthClient) {
       const error = this.errorHandler.authError(
         'OAuth認証が設定されていません。FREEE_ACCESS_TOKENを使用している場合、このツールは不要です。'
@@ -120,9 +173,10 @@ export class AuthService {
     }
 
     try {
-      const authUrl = this.envConfig.oauthClient.generateAuthUrl(state, enableCompanySelection);
-      this.logger.info('OAuth auth URL generated', { 
-        enableCompanySelection,
+      // enableCompanySelectionはデフォルトでtrueに設定
+      const authUrl = this.envConfig.oauthClient.generateAuthUrl(state, true);
+      this.logger.info('OAuth auth URL generated', {
+        redirectUri,
         state: state ? 'provided' : 'none'
       });
       return ok(authUrl);
@@ -154,7 +208,7 @@ export class AuthService {
     try {
       this.logger.info('Exchanging auth code for tokens');
       const tokens = await this.envConfig.oauthClient.exchangeCodeForTokens(code);
-      
+
       this.logger.info('Auth code exchange successful', {
         companyId: tokens.company_id,
         externalCid: tokens.external_cid,
@@ -175,7 +229,7 @@ export class AuthService {
    */
   getAuthDetails(): Result<AuthState, AppError> {
     const authResult = this.checkAuthenticationStatus();
-    
+
     if (authResult.isErr()) {
       return authResult;
     }
@@ -185,15 +239,15 @@ export class AuthService {
     // OAuth認証の場合、追加情報を取得
     if (authState.authMode === 'oauth' && this.envConfig.oauthClient) {
       const oauthState = this.envConfig.oauthClient.getAuthState();
-      
+
       return ok({
         ...authState,
         expiresAt: oauthState.expiresAt,
-        companyId: this.envConfig.oauthClient.getCompanyId(),
+        companyId: this.envConfig.oauthClient.getCompanyId() || undefined,
         externalCid: this.envConfig.oauthClient.getExternalCid(),
         scope: oauthState.tokens?.scope,
         tokens: oauthState.tokens,
-      });
+      } as AuthState);
     }
 
     return ok(authState);
@@ -204,7 +258,7 @@ export class AuthService {
    */
   getAuthSummary(): string {
     const authResult = this.checkAuthenticationStatus();
-    
+
     if (authResult.isErr()) {
       return `未認証: ${authResult.error.message}`;
     }
@@ -214,33 +268,33 @@ export class AuthService {
     switch (authState.authMode) {
       case 'direct_token':
         return '認証済み（直接トークン認証）\n認証方式: ACCESS_TOKEN';
-      
+
       case 'oauth':
         let summary = '認証済み（OAuth認証）';
-        
+
         if (authState.expiresAt) {
           const expiresAt = new Date(authState.expiresAt * 1000).toLocaleString();
           summary += `\nトークン有効期限: ${expiresAt}`;
         }
-        
+
         if (authState.companyId) {
           summary += `\n認証済み事業所ID: ${authState.companyId}`;
         }
-        
+
         if (authState.externalCid) {
           summary += `\n外部連携ID: ${authState.externalCid}`;
         }
-        
+
         if (authState.scope) {
           summary += `\nスコープ: ${authState.scope}`;
         }
-        
+
         if (this.envConfig.oauthClient) {
           summary += `\n事業所選択: ${this.envConfig.oauthClient.isCompanySelectionEnabled() ? '有効' : '無効'}`;
         }
-        
+
         return summary;
-      
+
       default:
         return '認証設定が不正です。FREEE_ACCESS_TOKEN または OAuth設定を設定してください。';
     }
@@ -251,7 +305,7 @@ export class AuthService {
    */
   checkTokenExpiry(): Result<{ isValid: boolean; expiresIn?: number }, AppError> {
     const authResult = this.checkAuthenticationStatus();
-    
+
     if (authResult.isErr()) {
       return err(authResult.error);
     }
@@ -266,7 +320,7 @@ export class AuthService {
     if (authState.authMode === 'oauth' && authState.expiresAt) {
       const now = Math.floor(Date.now() / 1000);
       const expiresIn = authState.expiresAt - now;
-      
+
       return ok({
         isValid: expiresIn > 0,
         expiresIn: Math.max(0, expiresIn),
@@ -274,6 +328,122 @@ export class AuthService {
     }
 
     return ok({ isValid: true });
+  }
+
+  /**
+   * 認証コードをアクセストークンに交換
+   */
+  async exchangeCodeForToken(code: string, redirectUri: string): Promise<Result<OAuthTokens, AppError>> {
+    if (!this.envConfig.useOAuth || !this.envConfig.oauthClient) {
+      return err(this.errorHandler.authError('OAuth認証が設定されていません'));
+    }
+
+    try {
+      const tokenResponse = await this.envConfig.oauthClient.exchangeCodeForTokens(code);
+      this.logger.info('Token exchange successful');
+      return ok(tokenResponse);
+    } catch (error) {
+      const appError = this.errorHandler.fromException(error);
+      this.logger.error('Token exchange failed', { error });
+      return err(appError);
+    }
+  }
+
+  /**
+   * リフレッシュトークンでアクセストークンを更新
+   */
+  async refreshToken(refreshToken: string): Promise<Result<OAuthTokens, AppError>> {
+    if (!this.envConfig.useOAuth || !this.envConfig.oauthClient) {
+      return err(this.errorHandler.authError('OAuth認証が設定されていません'));
+    }
+
+    try {
+      const tokenResponse = await this.envConfig.oauthClient.refreshTokens(refreshToken);
+      this.logger.info('Token refresh successful');
+      return ok(tokenResponse);
+    } catch (error) {
+      const appError = this.errorHandler.fromException(error);
+      this.logger.error('Token refresh failed', { error });
+      return err(appError);
+    }
+  }
+
+  /**
+   * 現在の認証コンテキストを取得
+   */
+  getAuthContext(): AuthContext {
+    if (this.envConfig.useDirectToken) {
+      return {
+        isAuthenticated: !!this.envConfig.accessToken,
+        authMode: 'direct_token',
+        accessToken: this.envConfig.accessToken,
+      };
+    } else if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
+      const authState = this.envConfig.oauthClient.getAuthState();
+      return {
+        isAuthenticated: authState.isAuthenticated,
+        authMode: 'oauth',
+        accessToken: authState.tokens?.access_token,
+        refreshToken: authState.tokens?.refresh_token,
+        expiresAt: authState.expiresAt ? new Date(authState.expiresAt) : undefined,
+      };
+    }
+
+    return {
+      isAuthenticated: false,
+      authMode: 'none',
+    };
+  }
+
+  /**
+   * 認証コンテキストを設定
+   */
+  setAuthContext(context: AuthContext): void {
+    // 現在の実装では、環境変数ベースの認証のため、
+    // 動的な認証コンテキストの設定はサポートしていません
+    this.logger.warn('Dynamic auth context setting is not supported in current implementation');
+  }
+
+  /**
+   * 認証状態をチェック
+   */
+  isAuthenticated(): boolean {
+    const context = this.getAuthContext();
+    return context.isAuthenticated;
+  }
+
+  /**
+   * トークンの有効性をチェック
+   */
+  async validateToken(token: string): Promise<Result<boolean, AppError>> {
+    try {
+      // 簡単なAPI呼び出しでトークンの有効性をチェック
+      // 実際の実装では、freee APIの軽量なエンドポイントを呼び出す
+      this.logger.info('Token validation not implemented yet');
+      return ok(true);
+    } catch (error) {
+      const appError = this.errorHandler.fromException(error);
+      this.logger.error('Token validation failed', { error });
+      return err(appError);
+    }
+  }
+
+  /**
+   * ログアウト
+   */
+  async logout(): Promise<Result<void, AppError>> {
+    try {
+      if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
+        // OAuthクライアントの状態をクリア（現在の実装では手動でのクリアはサポートしていません）
+        this.logger.info('OAuth state clear not implemented');
+      }
+      this.logger.info('Logout successful');
+      return ok(undefined);
+    } catch (error) {
+      const appError = this.errorHandler.fromException(error);
+      this.logger.error('Logout failed', { error });
+      return err(appError);
+    }
   }
 
   /**

@@ -3,7 +3,7 @@
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "allowJs": true,
@@ -23,22 +23,16 @@
     "exactOptionalPropertyTypes": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "outDir": "dist",
     "rootDir": "src",
-    "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@mcp-server/types": ["../../packages/types/src"],
-      "@mcp-server/shared": ["../../packages/shared/src"]
+      "@mcp-server/types": ["../../packages/types/dist"],
+      "@mcp-server/shared": ["../../packages/shared/dist"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"],
-  "references": [
-    { "path": "../../packages/types" },
-    { "path": "../../packages/shared" }
-  ]
+  "exclude": ["dist", "node_modules"]
 }

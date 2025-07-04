@@ -28,7 +28,7 @@ describe('FreeeOAuthClient', () => {
 
       expect(authUrl).toContain('https://accounts.secure.freee.co.jp/public_api/authorize');
       expect(authUrl).toContain('client_id=test_client_id');
-      expect(authUrl).toContain('redirect_uri=http%3A//localhost%3A3000/callback');
+      expect(authUrl).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback');
       expect(authUrl).toContain('response_type=code');
       expect(authUrl).toContain('prompt=select_company');
       expect(authUrl).toContain('state='); // ランダムなstateが生成される

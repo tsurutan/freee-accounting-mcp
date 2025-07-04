@@ -10,7 +10,13 @@ import { MCPResourceResponse } from '../utils/response-builder.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
 import { DateUtils } from '../utils/date-utils.js';
-import { FreeeClient } from '@mcp-server/shared';
+// import { FreeeClient } from '@mcp-server/shared';
+// 一時的な型定義
+interface FreeeClient {
+  getCompanies(): Promise<{ companies: any[] }>;
+  getDeals(params: any): Promise<{ deals: any[]; meta: { total_count: number } }>;
+  get(url: string): Promise<{ data: any }>;
+}
 
 /**
  * 取引関連リソースハンドラー
@@ -27,6 +33,27 @@ export class DealsResourceHandler extends BaseResourceHandler {
     @inject(TYPES.FreeeClient) private freeeClient: FreeeClient
   ) {
     super(authService, responseBuilder, errorHandler, logger);
+  }
+
+  /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'DealsResourceHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の取引関連リソースを提供するハンドラー';
+  }
+
+  /**
+   * 指定されたURIをサポートするかチェック
+   */
+  supportsUri(uri: string): boolean {
+    return uri.startsWith('deals://');
   }
 
   /**
@@ -50,7 +77,7 @@ export class DealsResourceHandler extends BaseResourceHandler {
     switch (uri) {
       case 'deals://list':
         return this.getDealsList();
-      
+
       default:
         return err(this.errorHandler.apiError(`Unknown resource: ${uri}`, 404));
     }
@@ -166,16 +193,16 @@ export class DealsResourceHandler extends BaseResourceHandler {
       this.logger.debug('Fetching deals for month', { year, month });
 
       const { startDate, endDate } = this.dateUtils.getMonthDateRange(year, month);
-      
+
       const result = await this.getDealsForPeriod(startDate, endDate);
-      
+
       if (result.isOk()) {
         return {
           ...result.value,
           month_info: { year, month },
         };
       }
-      
+
       return result;
     }, 'getDealsForMonth');
   }
@@ -209,13 +236,13 @@ export class DealsResourceHandler extends BaseResourceHandler {
       this.logger.debug('Calculating deals statistics', { startDate, endDate });
 
       const dealsResult = await this.getDealsForPeriod(startDate, endDate, 1000, 0);
-      
+
       if (dealsResult.isErr()) {
         return dealsResult;
       }
 
       const deals = dealsResult.value.deals;
-      
+
       // 統計計算
       const statistics = {
         total_count: deals.length,

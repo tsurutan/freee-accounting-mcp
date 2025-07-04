@@ -38,12 +38,12 @@ export class FreeeOAuthClient {
       // リクエストインターセプター
       this.httpClient.interceptors.request.use(
         (config) => {
-          console.log('\n🔐 [OAUTH REQUEST]');
-          console.log('URL:', config.url);
-          console.log('Method:', config.method?.toUpperCase());
-          console.log('Headers:', JSON.stringify(config.headers, null, 2));
+          console.error('\n🔐 [OAUTH REQUEST]');
+          console.error('URL:', config.url);
+          console.error('Method:', config.method?.toUpperCase());
+          console.error('Headers:', JSON.stringify(config.headers, null, 2));
           if (config.params) {
-            console.log('Params:', JSON.stringify(config.params, null, 2));
+            console.error('Params:', JSON.stringify(config.params, null, 2));
           }
           if (config.data) {
             // OAuth認証データは機密情報なので一部マスク
@@ -52,9 +52,9 @@ export class FreeeOAuthClient {
                           .replace(/refresh_token=[^&]+/g, 'refresh_token=***')
                           .replace(/code=[^&]+/g, 'code=***')
               : config.data;
-            console.log('Data:', maskedData);
+            console.error('Data:', maskedData);
           }
-          console.log('---');
+          console.error('---');
           return config;
         },
         (error) => {
@@ -66,10 +66,10 @@ export class FreeeOAuthClient {
       // レスポンスインターセプター
       this.httpClient.interceptors.response.use(
         (response) => {
-          console.log('\n🔐 [OAUTH RESPONSE]');
-          console.log('Status:', response.status, response.statusText);
-          console.log('URL:', response.config?.url);
-          console.log('Headers:', JSON.stringify(response.headers, null, 2));
+          console.error('\n🔐 [OAUTH RESPONSE]');
+          console.error('Status:', response.status, response.statusText);
+          console.error('URL:', response.config?.url);
+          console.error('Headers:', JSON.stringify(response.headers, null, 2));
 
           // OAuth認証レスポンスは機密情報なので一部マスク
           const maskedData = response.data ? {
@@ -77,8 +77,8 @@ export class FreeeOAuthClient {
             access_token: response.data.access_token ? '***' + response.data.access_token.slice(-4) : undefined,
             refresh_token: response.data.refresh_token ? '***' + response.data.refresh_token.slice(-4) : undefined,
           } : response.data;
-          console.log('Data:', JSON.stringify(maskedData, null, 2));
-          console.log('---\n');
+          console.error('Data:', JSON.stringify(maskedData, null, 2));
+          console.error('---\n');
           return response;
         },
         (error) => {
@@ -365,7 +365,7 @@ export class FreeeOAuthClient {
       }
     } catch (error) {
       SecurityAuditor.log('token_save_failed', 'medium', { error: error instanceof Error ? error.message : 'Unknown error' });
-      console.warn('Failed to save tokens to file:', error);
+      console.error('Failed to save tokens to file:', error);
     }
   }
 
@@ -418,7 +418,7 @@ export class FreeeOAuthClient {
       SecurityAuditor.log('token_load_failed', 'medium', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      console.warn('Failed to load tokens from file:', error);
+      console.error('Failed to load tokens from file:', error);
       this.deleteTokenFile();
     }
   }
@@ -432,7 +432,7 @@ export class FreeeOAuthClient {
         fs.unlinkSync(this.tokenFilePath);
       }
     } catch (error) {
-      console.warn('Failed to delete token file:', error);
+      console.error('Failed to delete token file:', error);
     }
   }
 

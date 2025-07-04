@@ -12,6 +12,19 @@ module.exports = {
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true,
+      tsconfig: {
+        module: 'ESNext',
+        target: 'ES2022',
+        moduleResolution: 'node',
+        allowSyntheticDefaultImports: true,
+        esModuleInterop: true,
+        strict: false,
+        skipLibCheck: true,
+        forceConsistentCasingInFileNames: true,
+        declaration: false,
+        declarationMap: false,
+        sourceMap: false,
+      },
     }],
   },
   collectCoverageFrom: [
@@ -32,4 +45,9 @@ module.exports = {
     '^@mcp-server/shared$': '<rootDir>/packages/shared/src',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  globals: {
+    'ts-jest': {
+      useESM: true,
+    },
+  },
 };

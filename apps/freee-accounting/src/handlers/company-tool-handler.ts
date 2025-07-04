@@ -5,9 +5,10 @@
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
 import { TYPES } from '../container/types.js';
-import { BaseToolHandler, ToolInfo, ToolExecutionResult } from './base-tool-handler.js';
+import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
+import { MCPToolResponse } from '../utils/response-builder.js';
 
 // 一時的な型定義
 interface FreeeClient {
@@ -120,31 +121,61 @@ export class CompanyToolHandler extends BaseToolHandler {
   }
 
   /**
+   * ハンドラーの名前を取得
+   */
+  getName(): string {
+    return 'CompanyToolHandler';
+  }
+
+  /**
+   * ハンドラーの説明を取得
+   */
+  getDescription(): string {
+    return 'freee会計の会社情報、勘定科目、取引先などの基本データを管理するツールハンドラー';
+  }
+
+  /**
+   * 指定されたツールをサポートするかチェック
+   */
+  supportsTool(name: string): boolean {
+    const supportedTools = [
+      'get-companies',
+      'get-current-company',
+      'get-account-items',
+      'get-partners',
+      'get-sections',
+      'get-items',
+      'get-tags'
+    ];
+    return supportedTools.includes(name);
+  }
+
+  /**
    * ツールを実行
    */
-  async executeTool(name: string, args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  async executeTool(name: string, args: any): Promise<Result<MCPToolResponse, AppError>> {
     switch (name) {
       case 'get-companies':
         return this.getCompanies();
-      
+
       case 'get-current-company':
         return this.getCurrentCompany();
-      
+
       case 'get-account-items':
         return this.getAccountItems(args);
-      
+
       case 'get-partners':
         return this.getPartners(args);
-      
+
       case 'get-sections':
         return this.getSections();
-      
+
       case 'get-items':
         return this.getItems(args);
-      
+
       case 'get-tags':
         return this.getTags();
-      
+
       default:
         return err(this.errorHandler.apiError(`Unknown tool: ${name}`, 404));
     }
@@ -153,7 +184,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 事業所一覧を取得
    */
-  private async getCompanies(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getCompanies(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting companies list');
 
@@ -162,7 +193,7 @@ export class CompanyToolHandler extends BaseToolHandler {
 
       const message = this.responseBuilder.formatCompaniesResponse(companies, this.appConfig.companyId);
 
-      this.logger.info('Companies retrieved successfully', { 
+      this.logger.info('Companies retrieved successfully', {
         count: companies.length,
         currentCompanyId: this.appConfig.companyId
       });
@@ -177,7 +208,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 現在の事業所情報を取得
    */
-  private async getCurrentCompany(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getCurrentCompany(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting current company info');
 
@@ -200,13 +231,13 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 勘定科目一覧を取得
    */
-  private async getAccountItems(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getAccountItems(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting account items', { args });
 
       const companyId = this.appConfig.companyId;
       let url = `/api/1/account_items?company_id=${companyId}`;
-      
+
       if (args.base_date) {
         const dateValidation = this.validator.validateDateString(args.base_date);
         if (dateValidation.isErr()) {
@@ -232,7 +263,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 取引先一覧を取得
    */
-  private async getPartners(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getPartners(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting partners', { args });
 
@@ -261,7 +292,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 部門一覧を取得
    */
-  private async getSections(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getSections(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting sections');
 
@@ -283,7 +314,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * 品目一覧を取得
    */
-  private async getItems(args: any): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getItems(args: any): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting items', { args });
 
@@ -312,7 +343,7 @@ export class CompanyToolHandler extends BaseToolHandler {
   /**
    * メモタグ一覧を取得
    */
-  private async getTags(): Promise<Result<ToolExecutionResult, AppError>> {
+  private async getTags(): Promise<Result<MCPToolResponse, AppError>> {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting tags');
 

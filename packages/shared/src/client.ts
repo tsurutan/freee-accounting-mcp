@@ -4,7 +4,6 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import {
-  FreeeApiResponse,
   FreeeError,
   FreeeCompaniesResponse,
   FreeeDealsResponse,
@@ -253,7 +252,7 @@ export class FreeeClient {
     return this.oauthClient;
   }
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<FreeeApiResponse<T>> {
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     // キャッシュチェック（GETリクエストのみ）
     if (this.enableCache && this.cache) {
       const cacheKey = CacheKeyGenerator.forApiRequest('GET', url, config?.params);
@@ -280,7 +279,7 @@ export class FreeeClient {
     }, `GET ${url}`);
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<FreeeApiResponse<T>> {
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return this.executeWithRetry(async () => {
       await this.rateLimiter.waitIfNeeded();
       const response = await this.client.post(url, data, config);
@@ -288,7 +287,7 @@ export class FreeeClient {
     }, `POST ${url}`);
   }
 
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<FreeeApiResponse<T>> {
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return this.executeWithRetry(async () => {
       await this.rateLimiter.waitIfNeeded();
       const response = await this.client.put(url, data, config);
@@ -296,7 +295,7 @@ export class FreeeClient {
     }, `PUT ${url}`);
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<FreeeApiResponse<T>> {
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return this.executeWithRetry(async () => {
       await this.rateLimiter.waitIfNeeded();
       const response = await this.client.delete(url, config);

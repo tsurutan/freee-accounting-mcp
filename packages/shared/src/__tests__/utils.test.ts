@@ -30,20 +30,20 @@ describe('Utils', () => {
 
   describe('formatAmount', () => {
     it('should format positive amounts correctly', () => {
-      expect(formatAmount(1000)).toBe('¥1,000');
-      expect(formatAmount(1234567)).toBe('¥1,234,567');
+      expect(formatAmount(1000)).toBe('￥1,000');
+      expect(formatAmount(1234567)).toBe('￥1,234,567');
     });
 
     it('should format negative amounts correctly', () => {
-      expect(formatAmount(-1000)).toBe('-¥1,000');
+      expect(formatAmount(-1000)).toBe('-￥1,000');
     });
 
     it('should format zero correctly', () => {
-      expect(formatAmount(0)).toBe('¥0');
+      expect(formatAmount(0)).toBe('￥0');
     });
 
     it('should format decimal amounts correctly', () => {
-      expect(formatAmount(1000.5)).toBe('¥1,001');
+      expect(formatAmount(1000.5)).toBe('￥1,001');
     });
   });
 

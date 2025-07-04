@@ -2,8 +2,10 @@
  * デバッグ用インターセプター
  */
 
+import { injectable, inject } from 'inversify';
 import { FreeeClient } from '@mcp-server/shared';
 import { Logger } from './logger.js';
+import { TYPES } from '../container/types.js';
 
 /**
  * デバッグ設定
@@ -19,10 +21,11 @@ export interface DebugConfig {
 /**
  * デバッグ用インターセプター
  */
+@injectable()
 export class DebugInterceptor {
   private config: DebugConfig;
 
-  constructor(private logger: Logger) {
+  constructor(@inject(TYPES.Logger) private logger: Logger) {
     this.config = {
       enableFreeeApi: process.env.DEBUG_FREEE_API === 'true',
       enableAxios: process.env.DEBUG_AXIOS === 'true',
@@ -101,11 +104,11 @@ export class DebugInterceptor {
       console.error('URL:', config.url);
       console.error('Method:', config.method?.toUpperCase());
       console.error('Headers:', JSON.stringify(this.maskHeaders(config.headers), null, 2));
-      
+
       if (config.params) {
         console.error('Params:', JSON.stringify(config.params, null, 2));
       }
-      
+
       if (config.data) {
         console.error('Data:', JSON.stringify(this.truncateData(config.data), null, 2));
       }
@@ -189,7 +192,7 @@ export class DebugInterceptor {
     }
 
     const masked = { ...headers };
-    
+
     // Authorizationヘッダーをマスク
     if (masked.Authorization && typeof masked.Authorization === 'string') {
       masked.Authorization = masked.Authorization.replace(/Bearer .+/, 'Bearer ***');

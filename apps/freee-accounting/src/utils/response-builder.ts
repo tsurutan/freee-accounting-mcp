@@ -15,6 +15,7 @@ export interface MCPToolResponse {
     text: string;
   }>;
   isError?: boolean;
+  [k: string]: unknown;
 }
 
 /**
@@ -26,6 +27,7 @@ export interface MCPResourceResponse {
     mimeType: string;
     text: string;
   }>;
+  [k: string]: unknown;
 }
 
 /**
