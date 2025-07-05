@@ -70,8 +70,8 @@ export class ApiResponseMapper {
   private config: MappingConfig;
 
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler
   ) {
     this.config = {
       includeMetadata: process.env.API_INCLUDE_METADATA !== 'false',

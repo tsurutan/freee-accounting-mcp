@@ -33,9 +33,9 @@ export interface ResponseInfo {
 @injectable()
 export class Middleware {
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler
   ) {}
 
   /**

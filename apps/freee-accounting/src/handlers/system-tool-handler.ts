@@ -23,8 +23,8 @@ export class SystemToolHandler extends BaseToolHandler {
     @inject(TYPES.ErrorHandler) errorHandler: any,
     @inject(TYPES.Logger) logger: Logger,
     @inject(TYPES.Validator) validator: any,
-    @inject(TYPES.AppConfig) private appConfig: AppConfig,
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig
+    @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
   }

@@ -17,15 +17,15 @@ import { Middleware } from './middleware.js';
  */
 @injectable()
 export class MCPServer {
-  private server: Server;
-  private transport: StdioServerTransport;
+  private readonly server: Server;
+  private readonly transport: StdioServerTransport;
 
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.AppConfig) private appConfig: AppConfig,
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
-    @inject(TYPES.RequestHandlers) private requestHandlers: RequestHandlers,
-    @inject(TYPES.Middleware) private middleware: Middleware
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
+    @inject(TYPES.RequestHandlers) private readonly requestHandlers: RequestHandlers,
+    @inject(TYPES.Middleware) private readonly middleware: Middleware
   ) {
     this.server = new Server({
       name: 'freee-accounting-mcp',

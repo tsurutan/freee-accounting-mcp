@@ -25,7 +25,7 @@ export interface DebugConfig {
 export class DebugInterceptor {
   private config: DebugConfig;
 
-  constructor(@inject(TYPES.Logger) private logger: Logger) {
+  constructor(@inject(TYPES.Logger) private readonly logger: Logger) {
     this.config = {
       enableFreeeApi: process.env.DEBUG_FREEE_API === 'true',
       enableAxios: process.env.DEBUG_AXIOS === 'true',
@@ -240,7 +240,7 @@ export class DebugInterceptor {
 
       // 文字列の場合は直接切り詰め
       if (typeof data === 'string') {
-        return data.substring(0, this.config.maxDataLength) + '...';
+        return `${data.substring(0, this.config.maxDataLength)  }...`;
       }
 
       return data;

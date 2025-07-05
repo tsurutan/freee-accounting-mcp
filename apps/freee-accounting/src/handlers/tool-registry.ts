@@ -19,11 +19,11 @@ import { ErrorHandler } from '../utils/error-handler.js';
  */
 @injectable()
 export class ToolRegistry {
-  private handlers: BaseToolHandler[] = [];
+  private readonly handlers: BaseToolHandler[] = [];
 
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler,
     // 各ツールハンドラーを注入
     @inject(TYPES.AuthToolHandler) authHandler: AuthToolHandler,
     @inject(TYPES.DealToolHandler) dealHandler: DealToolHandler,

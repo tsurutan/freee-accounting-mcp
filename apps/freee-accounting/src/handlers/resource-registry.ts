@@ -17,11 +17,11 @@ import { ErrorHandler } from '../utils/error-handler.js';
  */
 @injectable()
 export class ResourceRegistry {
-  private handlers: BaseResourceHandler[] = [];
+  private readonly handlers: BaseResourceHandler[] = [];
 
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler,
     // 各リソースハンドラーを注入
     @inject(TYPES.CompaniesResourceHandler) companiesHandler: CompaniesResourceHandler,
     @inject(TYPES.DealsResourceHandler) dealsHandler: DealsResourceHandler

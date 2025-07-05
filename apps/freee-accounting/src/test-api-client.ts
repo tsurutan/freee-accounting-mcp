@@ -21,7 +21,7 @@ async function testApiClient() {
     console.error('✅ FreeeApiClient インスタンス取得成功');
 
     // 環境設定を確認
-    const envConfig = container.get(TYPES.EnvironmentConfig) as any;
+    const envConfig = container.get(TYPES.EnvironmentConfig);
     console.error('環境設定:', {
       useOAuth: envConfig.useOAuth,
       hasClientId: envConfig.hasClientId,
@@ -48,7 +48,7 @@ async function testApiClient() {
 
     // FreeeClientとしてのテスト
     console.error('\n--- FreeeClient互換性テスト ---');
-    const freeeClient = container.get(TYPES.FreeeClient) as any;
+    const freeeClient = container.get(TYPES.FreeeClient);
     try {
       const companiesViaFreeeClient = await freeeClient.getCompanies();
       console.error('✅ FreeeClient.getCompanies 成功:', companiesViaFreeeClient);

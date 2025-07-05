@@ -38,13 +38,13 @@ export interface ApiCallResult<T = any> {
  */
 @injectable()
 export class FreeeApiClient {
-  private client: FreeeClient;
-  private debugInterceptor: DebugInterceptor;
+  private readonly client: FreeeClient;
+  private readonly debugInterceptor: DebugInterceptor;
 
   constructor(
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler,
     @inject(TYPES.DebugInterceptor) debugInterceptor: DebugInterceptor
   ) {
     this.debugInterceptor = debugInterceptor;

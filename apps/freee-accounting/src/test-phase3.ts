@@ -83,7 +83,7 @@ async function testPhase3() {
       // システム情報取得ツールのテスト
       const systemInfoResponse = await toolRegistry.executeTool('get-system-info', {});
       console.log('✅ システム情報取得ツールが正常に実行されました');
-      console.log('システム情報の一部:', systemInfoResponse.content[0]?.text.substring(0, 200) + '...');
+      console.log('システム情報の一部:', `${systemInfoResponse.content[0]?.text.substring(0, 200)  }...`);
     } catch (error) {
       console.log('⚠️ システム情報取得でエラー:', error);
     }
@@ -95,7 +95,7 @@ async function testPhase3() {
     try {
       const authStatusResponse = await toolRegistry.executeTool('check-auth-status', {});
       console.log('✅ 認証状態チェックツールが正常に実行されました');
-      console.log('認証状態:', authStatusResponse.content[0]?.text.substring(0, 200) + '...');
+      console.log('認証状態:', `${authStatusResponse.content[0]?.text.substring(0, 200)  }...`);
     } catch (error) {
       console.log('⚠️ 認証状態チェックでエラー:', error);
     }

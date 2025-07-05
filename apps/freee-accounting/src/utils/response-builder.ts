@@ -36,7 +36,7 @@ export interface MCPResourceResponse {
 @injectable()
 export class ResponseBuilder {
   constructor(
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler
   ) {}
 
   /**
@@ -199,7 +199,7 @@ export class ResponseBuilder {
     }
 
     const data = {
-      companies: companies,
+      companies,
       current_company_id: currentCompanyId,
       timestamp: new Date().toISOString(),
     };

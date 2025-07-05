@@ -20,7 +20,7 @@ export interface LogProfile {
 @injectable()
 export class LoggerSetup {
   private logger: Logger;
-  private profiles: Map<string, LogProfile>;
+  private readonly profiles: Map<string, LogProfile>;
 
   constructor() {
     this.profiles = new Map();

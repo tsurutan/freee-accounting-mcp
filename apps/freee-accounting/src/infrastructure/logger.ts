@@ -49,10 +49,10 @@ export interface LoggerConfig {
  */
 @injectable()
 export class Logger {
-  private winston: winston.Logger;
+  private readonly winston: winston.Logger;
   private logs: LogEntry[] = [];
-  private maxLogs = 1000;
-  private config: LoggerConfig;
+  private readonly maxLogs = 1000;
+  private readonly config: LoggerConfig;
 
   constructor() {
     this.config = {

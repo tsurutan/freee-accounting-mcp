@@ -37,7 +37,7 @@ export class AppConfig {
   private readonly config: AppConfigData;
 
   constructor(
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig
   ) {
     this.config = {
       // 事業所ID（環境変数から取得、デフォルト値は123456）

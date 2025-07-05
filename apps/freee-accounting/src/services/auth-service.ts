@@ -39,9 +39,9 @@ export interface AuthResult {
 @injectable()
 export class AuthService implements IAuthService {
   constructor(
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler
   ) {}
 
   /**

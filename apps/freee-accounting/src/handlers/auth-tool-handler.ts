@@ -22,7 +22,7 @@ export class AuthToolHandler extends BaseToolHandler {
     @inject(TYPES.ErrorHandler) errorHandler: any,
     @inject(TYPES.Logger) logger: any,
     @inject(TYPES.Validator) validator: any,
-    @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
   }

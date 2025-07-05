@@ -100,7 +100,7 @@ if (useOAuth) {
     clientId: process.env.FREEE_CLIENT_ID || '',
     clientSecret: process.env.FREEE_CLIENT_SECRET || '',
     redirectUri: process.env.FREEE_REDIRECT_URI || 'http://localhost:3000/callback',
-    baseUrl: baseUrl,
+    baseUrl,
   };
 }
 
@@ -123,7 +123,7 @@ if (useOAuth && oauthConfig) {
 const freeeClient = new FreeeClient({
   baseURL: baseUrl,
   accessToken: useDirectToken ? accessToken : undefined,
-  oauthClient: oauthClient,
+  oauthClient,
   maxRetries: 3,
   retryDelay: 1000,
   enableCache: true,
@@ -625,7 +625,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             uri,
             mimeType: 'application/json',
             text: JSON.stringify({
-              deals: deals,
+              deals,
               company_id: companyId,
               period: { start_date: startDate, end_date: endDate },
               deals_count: deals.length,
@@ -1294,7 +1294,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: 'text',
                 text: JSON.stringify({
-                  companies: companies,
+                  companies,
                   current_company_id: getCompanyId(),
                   timestamp: new Date().toISOString(),
                 }, null, 2),
@@ -1731,9 +1731,9 @@ ${Object.entries(healthResults).map(([name, result]) =>
         debugInfo += '## 認証情報\n';
         const authMode = useDirectToken ? '直接トークン認証' : useOAuth ? 'OAuth認証' : '認証未設定';
         debugInfo += `- 認証方式: ${authMode}\n`;
-        debugInfo += `- アクセストークン: ${!!accessToken ? '設定済み' : '未設定'}\n`;
-        debugInfo += `- クライアントID: ${!!process.env.FREEE_CLIENT_ID ? '設定済み' : '未設定'}\n`;
-        debugInfo += `- クライアントシークレット: ${!!process.env.FREEE_CLIENT_SECRET ? '設定済み' : '未設定'}\n`;
+        debugInfo += `- アクセストークン: ${accessToken ? '設定済み' : '未設定'}\n`;
+        debugInfo += `- クライアントID: ${process.env.FREEE_CLIENT_ID ? '設定済み' : '未設定'}\n`;
+        debugInfo += `- クライアントシークレット: ${process.env.FREEE_CLIENT_SECRET ? '設定済み' : '未設定'}\n`;
 
         if (useOAuth && oauthClient) {
           const authState = oauthClient.getAuthState();

@@ -23,7 +23,7 @@ class SimpleResponseBuilder {
   toolSuccessWithData(data: any, message?: string) {
     return {
       content: [{ type: 'text', text: message || 'Success' }],
-      data: data
+      data
     };
   }
   

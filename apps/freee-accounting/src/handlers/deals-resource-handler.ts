@@ -28,9 +28,9 @@ export class DealsResourceHandler extends BaseResourceHandler {
     @inject(TYPES.ResponseBuilder) responseBuilder: any,
     @inject(TYPES.ErrorHandler) errorHandler: any,
     @inject(TYPES.Logger) logger: any,
-    @inject(TYPES.AppConfig) private appConfig: AppConfig,
-    @inject(TYPES.DateUtils) private dateUtils: DateUtils,
-    @inject(TYPES.FreeeClient) private freeeClient: FreeeClient
+    @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.DateUtils) private readonly dateUtils: DateUtils,
+    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeClient
   ) {
     super(authService, responseBuilder, errorHandler, logger);
   }
@@ -129,7 +129,7 @@ export class DealsResourceHandler extends BaseResourceHandler {
       return this.responseBuilder.resourceSuccess(
         'deals://list',
         {
-          deals: deals,
+          deals,
           company_id: companyId,
           period: { start_date: startDate, end_date: endDate },
           deals_count: deals.length,

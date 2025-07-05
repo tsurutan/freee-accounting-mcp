@@ -23,9 +23,9 @@ import { ToolRegistry } from '../handlers/tool-registry.js';
 @injectable()
 export class RequestHandlers {
   constructor(
-    @inject(TYPES.Logger) private logger: Logger,
-    @inject(TYPES.ResourceRegistry) private resourceRegistry: ResourceRegistry,
-    @inject(TYPES.ToolRegistry) private toolRegistry: ToolRegistry
+    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.ResourceRegistry) private readonly resourceRegistry: ResourceRegistry,
+    @inject(TYPES.ToolRegistry) private readonly toolRegistry: ToolRegistry
   ) {}
 
   /**

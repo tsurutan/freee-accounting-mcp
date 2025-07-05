@@ -41,7 +41,7 @@ export type AuthError =
  */
 @injectable()
 export class EnvironmentConfig {
-  private config: ReturnType<typeof convict<EnvironmentVariables>>;
+  private readonly config: ReturnType<typeof convict<EnvironmentVariables>>;
   private _oauthClient?: FreeeOAuthClient;
 
   constructor() {

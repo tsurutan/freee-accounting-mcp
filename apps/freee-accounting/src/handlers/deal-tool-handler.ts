@@ -32,9 +32,9 @@ export class DealToolHandler extends BaseToolHandler {
     @inject(TYPES.ErrorHandler) errorHandler: any,
     @inject(TYPES.Logger) logger: any,
     @inject(TYPES.Validator) validator: any,
-    @inject(TYPES.AppConfig) private appConfig: AppConfig,
-    @inject(TYPES.DateUtils) private dateUtils: DateUtils,
-    @inject(TYPES.FreeeClient) private freeeClient: FreeeClient
+    @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.DateUtils) private readonly dateUtils: DateUtils,
+    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeClient
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
   }
