@@ -1,14 +1,19 @@
-# freee会計 MCP Server
+# 📊 freee会計 MCP Server
+
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-repo/mcp-server)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
 
 freee会計APIと連携するModel Context Protocol (MCP) Serverです。
 
-## 概要
+## 🎯 概要
 
 このプロジェクトは、freee会計APIを通じて会計データにアクセスし、AI アシスタントが会計業務を支援できるようにするMCPサーバーを提供します。
 
-## 機能
+## ⚡ 機能
 
-### Resources
+### 📄 Resources
 - 事業所情報の取得 (`companies://list`, `companies://current`)
 - 勘定科目一覧の取得 (`account-items://list`)
 - 取引先情報の取得 (`partners://list`)
@@ -18,63 +23,63 @@ freee会計APIと連携するModel Context Protocol (MCP) Serverです。
 - 取引データの取得 (`deals://list`)
 - 試算表データの取得 (`trial-balance://current`)
 
-### Tools
-- 認証管理 (`generate-auth-url`, `exchange-auth-code`, `check-auth-status`)
-- 接続テスト (`test-connection`)
-- 取引管理 (`create-deal`, `update-deal`, `get-deals`)
-- 取引先の作成 (`create-partner`)
-- 勘定科目の作成 (`create-account-item`)
-- システム監視 (`get-rate-limit-info`, `get-logs`, `get-metrics`, `get-health`)
-- キャッシュ管理 (`get-cache-stats`, `clear-cache`)
+### 🔧 Tools
+- 🔐 認証管理 (`generate-auth-url`, `exchange-auth-code`, `check-auth-status`)
+- ✅ 接続テスト (`test-connection`)
+- 💰 取引管理 (`create-deal`, `update-deal`, `get-deals`)
+- 🏢 取引先の作成 (`create-partner`)
+- 📊 勘定科目の作成 (`create-account-item`)
+- 📈 システム監視 (`get-rate-limit-info`, `get-logs`, `get-metrics`, `get-health`)
+- 🗄️ キャッシュ管理 (`get-cache-stats`, `clear-cache`)
 
-### Prompts
-- セットアップガイド (`setup-guide`)
-- 取引入力支援 (`transaction-entry`)
-- 月次決算チェックリスト (`monthly-closing`)
-- 試算表分析ガイド (`trial-balance-analysis`)
+### 💡 Prompts
+- 🚀 セットアップガイド (`setup-guide`)
+- ✏️ 取引入力支援 (`transaction-entry`)
+- 📅 月次決算チェックリスト (`monthly-closing`)
+- 📊 試算表分析ガイド (`trial-balance-analysis`)
 
-## プロジェクト構成
+## 🏗️ プロジェクト構成
 
 ```
 mcp-server/
-├── apps/
+├── 📁 apps/
 │   └── freee-accounting/     # freee会計MCP server
-├── packages/
+├── 📁 packages/
 │   ├── shared/               # 共通ライブラリ
 │   └── types/                # 型定義
-├── docs/
+├── 📁 docs/
 │   ├── SPECIFICATION.md      # 仕様書
 │   └── freee-mcp-todo.md     # 開発タスク一覧
-├── package.json
-├── turbo.json
-└── README.md
+├── 📄 package.json
+├── 📄 turbo.json
+└── 📄 README.md
 ```
 
-## 特徴
+## ✨ 特徴
 
-- **OAuth 2.0認証**: freee公式認証フローに完全準拠
-- **事業所ID設定**: 環境変数で事業所IDを設定可能（デフォルト: 123456）
-- **包括的な取引管理**: 取引の作成・更新・一覧取得をサポート
-- **型安全**: TypeScriptによる完全な型定義
-- **モノレポ構成**: 共通ライブラリとアプリケーションの分離
-- **MCP準拠**: Model Context Protocolの仕様に完全準拠
-- **レート制限対応**: 自動的なレート制限管理とリトライ機能
-- **包括的なログ**: レベル別ログ機能と運用監視
-- **エラーハンドリング**: 詳細なエラー情報とリトライ可能性の判定
-- **認証情報永続化**: トークンの自動保存・復元機能
-- **高性能キャッシュ**: メモリベースキャッシュによる高速レスポンス
-- **セキュリティ強化**: トークン暗号化、セキュリティ監査、入力値検証
-- **監視・メトリクス**: リアルタイム監視、ヘルスチェック、アラート機能
-- **プロダクションレディ**: 企業レベルでの運用に対応
+- 🔐 **OAuth 2.0認証**: freee公式認証フローに完全準拠
+- 🏢 **事業所ID設定**: 環境変数で事業所IDを設定可能（デフォルト: 123456）
+- 💰 **包括的な取引管理**: 取引の作成・更新・一覧取得をサポート
+- 🛡️ **型安全**: TypeScriptによる完全な型定義
+- 📦 **モノレポ構成**: 共通ライブラリとアプリケーションの分離
+- 🔄 **MCP準拠**: Model Context Protocolの仕様に完全準拠
+- ⚡ **レート制限対応**: 自動的なレート制限管理とリトライ機能
+- 📊 **包括的なログ**: レベル別ログ機能と運用監視
+- 🚨 **エラーハンドリング**: 詳細なエラー情報とリトライ可能性の判定
+- 💾 **認証情報永続化**: トークンの自動保存・復元機能
+- 🚀 **高性能キャッシュ**: メモリベースキャッシュによる高速レスポンス
+- 🔒 **セキュリティ強化**: トークン暗号化、セキュリティ監査、入力値検証
+- 📈 **監視・メトリクス**: リアルタイム監視、ヘルスチェック、アラート機能
+- 🏭 **プロダクションレディ**: 企業レベルでの運用に対応
 
-## セットアップ
+## 🚀 セットアップ
 
-### 前提条件
+### 📋 前提条件
 
-- Node.js 18.0.0以上
-- npm 9.0.0以上
+- ![Node.js](https://img.shields.io/badge/Node.js-18.0.0+-339933?logo=nodedotjs&logoColor=white) Node.js 18.0.0以上
+- ![npm](https://img.shields.io/badge/npm-9.0.0+-CB3837?logo=npm&logoColor=white) npm 9.0.0以上
 
-### インストール
+### 📦 インストール
 
 ```bash
 # 依存関係のインストール
@@ -87,11 +92,11 @@ npm run dev
 npm run build
 ```
 
-### 環境変数設定
+### ⚙️ 環境変数設定
 
 `.env`ファイルを作成し、以下の環境変数を設定してください：
 
-#### OAuth 2.0認証
+#### 🔐 OAuth 2.0認証
 
 ```env
 # OAuth設定
@@ -106,41 +111,41 @@ FREEE_COMPANY_ID=123456
 FREEE_API_BASE_URL=https://api.freee.co.jp
 ```
 
-**注意**:
-- OAuth認証では事業所選択機能を制御できます。
-- 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
-- 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
-- リダイレクトURIの設定は必須ではありません。設定しない場合は `urn:ietf:wg:oauth:2.0:oob` が使用されます。
+> **⚠️ 注意**:
+> - OAuth認証では事業所選択機能を制御できます。
+> - 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
+> - 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
+> - リダイレクトURIの設定は必須ではありません。設定しない場合は `urn:ietf:wg:oauth:2.0:oob` が使用されます。
 
-### 事業所IDの取得方法
+### 🏢 事業所IDの取得方法
 
 事業所IDを取得する方法は複数あります：
 
-1. **freee Web版から取得**
+1. **🌐 freee Web版から取得**
    - freee Web版にログインし、設定画面やURLから事業所IDを確認できます
    - ブラウザのアドレスバーで `https://secure.freee.co.jp/companies/XXXXXX` のXXXXXXが事業所IDです
 
-2. **API経由で取得**
+2. **🔌 API経由で取得**
    - 認証後、`get-companies` ツールを使用して利用可能な事業所一覧を取得できます
    - レスポンスの `id` フィールドが事業所IDになります
 
-3. **Claude Code経由で取得**
+3. **🤖 Claude Code経由で取得**
    - Claude Codeで「利用可能な事業所を教えてください」とリクエストすることで確認できます
 
-### 重要な免責事項
+### ⚠️ 重要な免責事項
 
-**⚠️ 本MCPサーバーについて**
-- 本MCPサーバーは非公式のものです
-- freee株式会社によって開発・サポートされているものではありません
-- 本ソフトウェアの使用によって生じた一切の損害について、開発者は責任を負いません
-- 本番環境での使用は自己責任でお願いします
-- データの正確性や完全性について保証するものではありません
+> **🚨 本MCPサーバーについて**
+> - 本MCPサーバーは非公式のものです
+> - freee株式会社によって開発・サポートされているものではありません
+> - 本ソフトウェアの使用によって生じた一切の損害について、開発者は責任を負いません
+> - 本番環境での使用は自己責任でお願いします
+> - データの正確性や完全性について保証するものではありません
 
-## Claude Codeでの使用方法
+## 🤖 Claude Codeでの使用方法
 
 このMCPサーバーをClaude Codeで使用するには、以下の手順でインストールしてください：
 
-### 1. MCP設定の追加
+### 1️⃣ MCP設定の追加
 
 Claude Codeに以下のコマンドでMCPサーバーを追加します：
 
@@ -160,16 +165,16 @@ claude mcp list
 claude mcp get freee-accounting
 ```
 
-### 2. Claude Codeでの使用
+### 2️⃣ Claude Codeでの使用
 
 MCPサーバーがインストールされると、Claude Codeで以下のリソースとツールが利用できます：
 
-- **会計データの取得**: 取引、勘定科目、取引先などの情報
-- **取引の作成・更新**: 新規取引の入力や既存取引の修正
-- **試算表の分析**: 月次・年次の財務データの分析
-- **認証管理**: freee APIへの認証とアクセス管理
+- 📊 **会計データの取得**: 取引、勘定科目、取引先などの情報
+- ✏️ **取引の作成・更新**: 新規取引の入力や既存取引の修正
+- 📈 **試算表の分析**: 月次・年次の財務データの分析
+- 🔐 **認証管理**: freee APIへの認証とアクセス管理
 
-### 3. 使用例
+### 3️⃣ 使用例
 
 Claude Codeで以下のようにMCPサーバーを活用できます：
 
@@ -184,9 +189,9 @@ Claude Codeで以下のようにMCPサーバーを活用できます：
 "今月の損益計算書を分析してください"
 ```
 
-## 従来の使用方法
+## 🔧 従来の使用方法
 
-### 認証の設定
+### 🔐 認証の設定
 
 #### OAuth認証の場合
 
@@ -239,7 +244,7 @@ Claude Codeで以下のようにMCPサーバーを活用できます：
    check-auth-status
    ```
 
-### 基本的な使用例
+### 📖 基本的な使用例
 
 ```bash
 # 認証状態の確認
@@ -261,9 +266,9 @@ get-deals --start_date 2024-12-01 --end_date 2024-12-31
 create-deal
 ```
 
-## アーキテクチャ
+## 🏗️ アーキテクチャ
 
-### レイヤー構成
+### 🔧 レイヤー構成
 
 このプロジェクトは、クリーンアーキテクチャの原則に基づいて設計されています：
 
@@ -301,29 +306,29 @@ create-deal
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### インフラ層の主要コンポーネント
+### 🔧 インフラ層の主要コンポーネント
 
-#### FreeeApiClient
+#### 🌐 FreeeApiClient
 - freee APIとの通信を担当する統一インターフェース
 - レート制限、リトライ、キャッシュ機能を内蔵
 - デバッグ機能とログ機能を統合
 
-#### ApiResponseMapper
+#### 🔄 ApiResponseMapper
 - freee APIレスポンスの標準化とマッピング
 - 型安全なデータ変換
 - ページネーション情報の抽出
 
-#### DebugInterceptor
+#### 🔍 DebugInterceptor
 - HTTP リクエスト/レスポンスのデバッグ出力
 - MCP Inspector対応
 - 機密情報のマスキング機能
 
-#### LoggerSetup
+#### 📊 LoggerSetup
 - 環境別ログ設定の管理
 - プロファイルベースの設定切り替え
 - 構造化ログとファイル出力
 
-### 依存性注入
+### 🔌 依存性注入
 
 InversifyJSを使用したDIコンテナにより、各レイヤー間の疎結合を実現：
 
@@ -339,7 +344,7 @@ export class AuthService {
 }
 ```
 
-### エラーハンドリング
+### 🚨 エラーハンドリング
 
 Result型パターンを採用し、型安全なエラーハンドリングを実現：
 
@@ -355,9 +360,9 @@ if (result.isOk()) {
 }
 ```
 
-## 開発
+## 🛠️ 開発
 
-### 利用可能なスクリプト
+### 📋 利用可能なスクリプト
 
 - `npm run build` - 全パッケージのビルド
 - `npm run dev` - 開発モードでの実行
@@ -370,11 +375,11 @@ if (result.isOk()) {
 - `npm run inspect` - MCP Inspector を使用したインタラクティブテスト（開発版）
 - `npm run inspect:build` - MCP Inspector を使用したインタラクティブテスト（ビルド版）
 
-### 開発環境
+### 🏗️ 開発環境
 
 このプロジェクトはmonorepo構成でTurborepoを使用しています。各パッケージは独立して開発・テストできます。
 
-#### ES Module対応
+#### 📦 ES Module対応
 
 プロジェクトは完全にES Moduleに対応しており、以下の特徴があります：
 
@@ -383,20 +388,20 @@ if (result.isOk()) {
 - 相対インポートの自動修正（`.js`拡張子の追加）
 - Node.js 18+での最適化されたパフォーマンス
 
-#### ビルドプロセス
+#### 🔧 ビルドプロセス
 
 1. **TypeScript コンパイル**: ソースコードをES Moduleとしてコンパイル
 2. **インポート修正**: 相対インポートに`.js`拡張子を自動追加
 3. **型定義生成**: `.d.ts`ファイルの生成
 4. **依存関係解決**: パッケージ間の依存関係を自動解決
 
-## デバッグ
+## 🔍 デバッグ
 
 ### MCP Inspector を使用したデバッグ
 
 MCP Inspector は、MCPサーバーをインタラクティブにテスト・デバッグするためのツールです。
 
-#### 基本的な使用方法
+#### 🚀 基本的な使用方法
 
 ```bash
 # 開発版（TypeScript）でのデバッグ
