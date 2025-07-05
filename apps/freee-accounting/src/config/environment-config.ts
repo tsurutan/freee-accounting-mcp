@@ -19,6 +19,7 @@ export interface EnvironmentVariables {
     clientSecret: string;
     redirectUri: string;
     baseUrl: string;
+    companyId: number;
   };
   debug: {
     freeeApi: boolean;
@@ -74,6 +75,12 @@ export class EnvironmentConfig {
           format: String,
           default: 'https://api.freee.co.jp',
           env: 'FREEE_API_BASE_URL',
+        },
+        companyId: {
+          doc: 'freee company ID',
+          format: 'int',
+          default: 123456,
+          env: 'FREEE_COMPANY_ID',
         },
       },
       debug: {
@@ -191,6 +198,13 @@ export class EnvironmentConfig {
    */
   get baseUrl(): string {
     return this.config.get('freee.baseUrl');
+  }
+
+  /**
+   * 事業所IDを取得
+   */
+  get companyId(): number {
+    return this.config.get('freee.companyId');
   }
 
   /**

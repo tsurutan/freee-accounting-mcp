@@ -10,7 +10,7 @@ import { EnvironmentConfig } from './environment-config.js';
  * アプリケーション設定の型定義
  */
 export interface AppConfigData {
-  /** 固定の事業所ID */
+  /** 事業所ID（環境変数で設定可能） */
   companyId: number;
   /** APIベースURL */
   baseUrl: string;
@@ -40,8 +40,8 @@ export class AppConfig {
     @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig
   ) {
     this.config = {
-      // 固定の事業所ID
-      companyId: 2067140,
+      // 事業所ID（環境変数から取得、デフォルト値は123456）
+      companyId: this.envConfig.companyId || 123456,
       
       // APIベースURL（環境変数から取得）
       baseUrl: this.envConfig.oauthConfig?.baseUrl || 'https://api.freee.co.jp',
