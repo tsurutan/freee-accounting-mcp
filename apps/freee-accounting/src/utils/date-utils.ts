@@ -93,8 +93,22 @@ export class DateUtils {
       return false;
     }
 
-    const date = new Date(dateString);
-    return !isNaN(date.getTime());
+    // Split the date string to validate components
+    const [year, month, day] = dateString.split('-').map(Number);
+    
+    // Check if the date components are valid
+    if (month < 1 || month > 12) {
+      return false;
+    }
+    
+    // Create date object to check if the day is valid for the given month/year
+    const date = new Date(year, month - 1, day);
+    
+    // Check if the date object represents the same date we input
+    // This catches invalid dates like February 30th
+    return date.getFullYear() === year && 
+           date.getMonth() === month - 1 && 
+           date.getDate() === day;
   }
 
   /**
@@ -152,7 +166,8 @@ export class DateUtils {
     const targetYear = year ?? now.getFullYear();
     const targetMonth = month ?? (now.getMonth() + 1);
     
-    const date = new Date(targetYear, targetMonth - 1, 1);
+    // Use UTC to avoid timezone issues
+    const date = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
     return this.formatDate(date);
   }
 
@@ -164,7 +179,8 @@ export class DateUtils {
     const targetYear = year ?? now.getFullYear();
     const targetMonth = month ?? (now.getMonth() + 1);
     
-    const date = new Date(targetYear, targetMonth, 0); // 翌月の0日 = 当月の最終日
+    // Use UTC to avoid timezone issues
+    const date = new Date(Date.UTC(targetYear, targetMonth, 0)); // 翌月の0日 = 当月の最終日
     return this.formatDate(date);
   }
 
