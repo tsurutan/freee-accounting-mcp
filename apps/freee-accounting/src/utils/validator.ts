@@ -210,11 +210,30 @@ export class Validator {
       });
     }
 
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
+    // Split the date string to validate components
+    const [year, month, day] = dateString.split('-').map(Number);
+    
+    // Check if the date components are valid
+    if (month < 1 || month > 12) {
       return err({
         type: 'VALIDATION_ERROR',
-        message: '有効な日付を入力してください',
+        message: '有効な月を入力してください（1-12）',
+        field: 'date',
+        retryable: false,
+      });
+    }
+    
+    // Create date object to check if the day is valid for the given month/year
+    const date = new Date(year, month - 1, day);
+    
+    // Check if the date object represents the same date we input
+    // This catches invalid dates like February 30th
+    if (date.getFullYear() !== year || 
+        date.getMonth() !== month - 1 || 
+        date.getDate() !== day) {
+      return err({
+        type: 'VALIDATION_ERROR',
+        message: '存在しない日付です',
         field: 'date',
         retryable: false,
       });

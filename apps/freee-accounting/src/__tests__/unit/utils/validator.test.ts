@@ -319,4 +319,76 @@ describe('Validator', () => {
       }
     });
   });
+
+  describe('validateDateString', () => {
+    it('有効な日付文字列を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('2024-01-15');
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe('2024-01-15');
+      }
+    });
+
+    it('無効な月を持つ日付を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('2024-13-01');
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.type).toBe('VALIDATION_ERROR');
+        expect(result.error.message).toBe('有効な月を入力してください（1-12）');
+      }
+    });
+
+    it('存在しない日付を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('2024-02-30');
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.type).toBe('VALIDATION_ERROR');
+        expect(result.error.message).toBe('存在しない日付です');
+      }
+    });
+
+    it('平年のうるう日を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('2023-02-29');
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.type).toBe('VALIDATION_ERROR');
+        expect(result.error.message).toBe('存在しない日付です');
+      }
+    });
+
+    it('うるう年の2月29日を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('2024-02-29');
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe('2024-02-29');
+      }
+    });
+
+    it('間違った形式の日付を正しく検証する', () => {
+      // Act
+      const result = validator.validateDateString('invalid-date');
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.type).toBe('VALIDATION_ERROR');
+        expect(result.error.message).toBe('日付はYYYY-MM-DD形式で入力してください');
+      }
+    });
+  });
 });
