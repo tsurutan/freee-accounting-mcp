@@ -102,7 +102,6 @@ npm run build
 # OAuth設定
 FREEE_CLIENT_ID=your_client_id
 FREEE_CLIENT_SECRET=your_client_secret
-FREEE_REDIRECT_URI=your_redirect_uri
 
 # 事業所ID設定（下記「事業所IDの取得方法」を参照）
 FREEE_COMPANY_ID=123456
@@ -115,7 +114,6 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 > - OAuth認証では事業所選択機能を制御できます。
 > - 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
 > - 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
-> - リダイレクトURIの設定は必須ではありません。設定しない場合は `urn:ietf:wg:oauth:2.0:oob` が使用されます。
 
 ### 🏢 事業所IDの取得方法
 
@@ -157,7 +155,6 @@ npm run build
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -e FREEE_REDIRECT_URI=http://localhost:3000/callback \
   -- node /path/to/mcp-server/apps/freee-accounting/dist/index.js
 
 # 設定を確認
@@ -200,13 +197,11 @@ Claude Codeで以下のようにMCPサーバーを活用できます：
    - 「新規追加」をクリックしてアプリケーションを作成
    - アプリ名と概要を入力
    - Client IDとClient Secretを取得
-   - コールバックURLを設定（例: `http://localhost:3000/callback`）
 
 2. **環境変数を設定**
    ```bash
    export FREEE_CLIENT_ID="your_client_id"
    export FREEE_CLIENT_SECRET="your_client_secret"
-   export FREEE_REDIRECT_URI="http://localhost:3000/callback"
    ```
 
 3. **MCP Serverを起動**
@@ -415,14 +410,14 @@ cd apps/freee-accounting
 npm run debug
 ```
 
-#### MCP Inspector の機能
+#### 🛠️ MCP Inspector の機能
 
-- **Resources タブ**: 利用可能なリソースの一覧表示とテスト
-- **Prompts タブ**: プロンプトテンプレートの表示とテスト
-- **Tools タブ**: ツールの一覧表示と実行テスト
-- **Notifications ペイン**: サーバーからのログと通知の表示
+- **📄 Resources タブ**: 利用可能なリソースの一覧表示とテスト
+- **💡 Prompts タブ**: プロンプトテンプレートの表示とテスト
+- **🔧 Tools タブ**: ツールの一覧表示と実行テスト
+- **📋 Notifications ペイン**: サーバーからのログと通知の表示
 
-#### デバッグワークフロー
+#### 🔄 デバッグワークフロー
 
 1. **開発開始**
    ```bash
@@ -492,7 +487,7 @@ npm run debug
    - 並行操作のテスト
    - エラーハンドリングとエラーレスポンスの確認
 
-#### 環境変数の設定
+#### ⚙️ 環境変数の設定
 
 デバッグ時は、`.env` ファイルに以下の環境変数を設定してください：
 
@@ -500,7 +495,6 @@ npm run debug
 # freee API設定
 FREEE_CLIENT_ID=your_client_id
 FREEE_CLIENT_SECRET=your_client_secret
-FREEE_REDIRECT_URI=http://localhost:3000/callback
 FREEE_API_BASE_URL=https://api.freee.co.jp
 
 # デバッグ設定
@@ -508,9 +502,9 @@ DEBUG=true
 LOG_LEVEL=debug
 ```
 
-#### 具体的なテスト例
+#### 🧪 具体的なテスト例
 
-**1. OAuth認証フローのテスト:**
+**1. 🔐 OAuth認証フローのテスト:**
 ```
 Tools タブ → generate-auth-url → Execute
 → 生成されたURLでブラウザ認証
@@ -518,14 +512,14 @@ Tools タブ → generate-auth-url → Execute
 → check-auth-status → Execute（認証状態確認）
 ```
 
-**2. 基本データ取得のテスト:**
+**2. 📊 基本データ取得のテスト:**
 ```
 Resources タブ → companies://list → Load
 → account-items://list → Load
 → partners://list → Load
 ```
 
-**3. 取引作成のテスト:**
+**3. 💰 取引作成のテスト:**
 ```
 Tools タブ → create-deal → 以下のJSONを入力:
 {
@@ -542,20 +536,20 @@ Tools タブ → create-deal → 以下のJSONを入力:
 }
 ```
 
-**4. システム監視のテスト:**
+**4. 📈 システム監視のテスト:**
 ```
 Tools タブ → get-health → Execute
 → get-metrics → Execute
 → get-rate-limit-info → Execute
 ```
 
-#### トラブルシューティング
+#### 🔧 トラブルシューティング
 
-- **接続エラー**: 環境変数が正しく設定されているか確認
-- **認証エラー**: freee APIの認証情報が有効か確認
-- **レート制限**: API呼び出し頻度を調整
+- **🔌 接続エラー**: 環境変数が正しく設定されているか確認
+- **🔐 認証エラー**: freee APIの認証情報が有効か確認
+- **⚡ レート制限**: API呼び出し頻度を調整
 
-## プロジェクト状況
+## 🎯 プロジェクト状況
 
 🎉 **プロジェクト完了！**
 
@@ -566,17 +560,24 @@ freee会計 MCP Serverは、5つのフェーズを経て完全に実装され、
 - **Phase 4**: レート制限対応・エラーハンドリング強化・ログ機能・テスト実装 ✅
 - **Phase 5**: パフォーマンス最適化・セキュリティ強化・監視機能・ドキュメント充実 ✅
 
-### 実装済み機能
+### 🚀 実装済み機能
 
-- **8種類のResources**: 事業所、勘定科目、取引先、部門、品目、メモタグ、取引、試算表
-- **12種類のTools**: 認証、CRUD操作、システム監視、キャッシュ管理
-- **4種類のPrompts**: セットアップ、取引入力支援、月次決算、試算表分析
-- **企業レベルの運用機能**: 監視、メトリクス、セキュリティ、パフォーマンス最適化
+- **📄 8種類のResources**: 事業所、勘定科目、取引先、部門、品目、メモタグ、取引、試算表
+- **🔧 12種類のTools**: 認証、CRUD操作、システム監視、キャッシュ管理
+- **💡 4種類のPrompts**: セットアップ、取引入力支援、月次決算、試算表分析
+- **🏭 企業レベルの運用機能**: 監視、メトリクス、セキュリティ、パフォーマンス最適化
 
-## ライセンス
+---
+
+## 📄 ライセンス
 
 MIT License
 
-## 貢献
+## 🤝 貢献
 
 プルリクエストやイシューの報告を歓迎します。詳細は`docs/development/`配下の規約をご確認ください。
+
+<div align="center">
+  <h3>🙏 ご支援いただきありがとうございます！</h3>
+  <p>このプロジェクトが役に立った場合は、⭐ スターを付けていただけると励みになります！</p>
+</div>
