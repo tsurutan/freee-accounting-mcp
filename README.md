@@ -1,6 +1,8 @@
 # 📊 freee会計 MCP Server
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/your-repo/mcp-server)
+[![NPM Version](https://img.shields.io/npm/v/@tsurutan/freee-accounting-mcp)](https://www.npmjs.com/package/@tsurutan/freee-accounting-mcp)
+[![NPM Downloads](https://img.shields.io/npm/dm/@tsurutan/freee-accounting-mcp)](https://www.npmjs.com/package/@tsurutan/freee-accounting-mcp)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/tsurutan/mcp-server/ci.yml?branch=main)](https://github.com/tsurutan/mcp-server/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
@@ -139,24 +141,60 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 > - 本番環境での使用は自己責任でお願いします
 > - データの正確性や完全性について保証するものではありません
 
-## 🤖 Claude Codeでの使用方法
+## 📦 インストール方法
 
-このMCPサーバーをClaude Codeで使用するには、以下の手順でインストールしてください：
+### 🚀 オンラインインストール（推奨）
 
-### 1️⃣ MCP設定の追加
-
-Claude Codeに以下のコマンドでMCPサーバーを追加します：
+**NPMからのインストール:**
 
 ```bash
-# プロジェクトをビルド
-npm run build
+# グローバルインストール
+npm install -g @tsurutan/freee-accounting-mcp
 
-# MCPサーバーを追加
+# Claude Codeで使用
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -- node /path/to/mcp-server/apps/freee-accounting/dist/index.js
+  -- npx @tsurutan/freee-accounting-mcp
+```
 
+**npxを使用した直接実行:**
+
+```bash
+# Claude Codeで使用（インストール不要）
+claude mcp add freee-accounting \
+  -e FREEE_CLIENT_ID=your_client_id \
+  -e FREEE_CLIENT_SECRET=your_client_secret \
+  -- npx @tsurutan/freee-accounting-mcp
+```
+
+### 🔧 ローカル開発版のインストール
+
+開発者向けまたはローカル環境での使用：
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/tsurutan/mcp-server.git
+cd mcp-server
+
+# 依存関係をインストール
+npm install
+
+# プロジェクトをビルド
+npm run build
+
+# Claude Codeで使用
+claude mcp add freee-accounting \
+  -e FREEE_CLIENT_ID=your_client_id \
+  -e FREEE_CLIENT_SECRET=your_client_secret \
+  -- node ./apps/freee-accounting/dist/index.js
+```
+
+## 🤖 Claude Codeでの使用方法
+
+### 1️⃣ 設定の確認
+
+```bash
 # 設定を確認
 claude mcp list
 claude mcp get freee-accounting
@@ -549,16 +587,42 @@ Tools タブ → get-health → Execute
 - **🔐 認証エラー**: freee APIの認証情報が有効か確認
 - **⚡ レート制限**: API呼び出し頻度を調整
 
+## 🚀 公開・配布について
+
+### NPMパッケージとして公開
+
+このMCPサーバーは[@tsurutan/freee-accounting-mcp](https://www.npmjs.com/package/@tsurutan/freee-accounting-mcp)としてNPMに公開されており、世界中の開発者が簡単にインストールできます。
+
+### GitHub Actions による自動化
+
+- **CI/CD パイプライン**: コードのプッシュ時に自動テスト・ビルド
+- **自動公開**: タグ作成時にNPMへの自動公開
+- **品質保証**: ESLint、TypeScriptチェック、テスト実行
+
+### 公開手順
+
+```bash
+# 1. バージョンアップ
+npm version patch|minor|major
+
+# 2. タグをプッシュ（自動公開がトリガーされる）
+git push origin --tags
+
+# 3. NPMで公開を確認
+npm info @tsurutan/freee-accounting-mcp
+```
+
 ## 🎯 プロジェクト状況
 
-🎉 **プロジェクト完了！**
+🎉 **プロジェクト完了・公開済み！**
 
-freee会計 MCP Serverは、5つのフェーズを経て完全に実装され、プロダクションレディな状態に到達しました：
+freee会計 MCP Serverは、5つのフェーズを経て完全に実装され、NPMで公開されているプロダクションレディな状態に到達しました：
 
 - **Phase 1-2**: 基本機能・OAuth認証・基本リソース・ツール実装 ✅
 - **Phase 3**: 残りのリソース・ツール・Prompts・認証情報永続化 ✅
 - **Phase 4**: レート制限対応・エラーハンドリング強化・ログ機能・テスト実装 ✅
 - **Phase 5**: パフォーマンス最適化・セキュリティ強化・監視機能・ドキュメント充実 ✅
+- **Phase 6**: NPM公開・CI/CD・配布自動化 ✅
 
 ### 🚀 実装済み機能
 
@@ -566,6 +630,7 @@ freee会計 MCP Serverは、5つのフェーズを経て完全に実装され、
 - **🔧 12種類のTools**: 認証、CRUD操作、システム監視、キャッシュ管理
 - **💡 4種類のPrompts**: セットアップ、取引入力支援、月次決算、試算表分析
 - **🏭 企業レベルの運用機能**: 監視、メトリクス、セキュリティ、パフォーマンス最適化
+- **📦 パッケージ配布**: NPM公開、自動CI/CD、オンラインインストール対応
 
 ---
 

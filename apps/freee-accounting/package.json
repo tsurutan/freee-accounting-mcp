@@ -1,7 +1,7 @@
 {
-  "name": "freee-accounting-mcp",
-  "version": "0.1.0",
-  "description": "MCP Server for freee accounting API integration",
+  "name": "@tsurutan/freee-accounting-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server for freee accounting API integration with Claude AI",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -15,23 +15,13 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run clean && npm run build && npm run test",
     "debug": "npx @modelcontextprotocol/inspector tsx src/index.ts",
     "debug:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
     "inspect": "npx @modelcontextprotocol/inspector tsx src/index.ts",
-    "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
-    "test:phase7": "tsx src/__tests__/test-runner.ts",
-    "test:get-deals": "tsx src/__tests__/run-get-deals-tests.ts",
-    "test:get-deals-unit": "jest --testPathPattern=deal-tool-handler.test.ts",
-    "test:get-deals-integration": "jest --testPathPattern=get-deals-tool.test.ts",
-    "test:get-deals-e2e": "RUN_E2E_TESTS=true jest --testPathPattern=get-deals-tool.e2e.test.ts",
-    "test:unit": "jest --testPathPattern=\"unit\"",
-    "test:integration": "jest --testPathPattern=\"integration\"",
-    "test:coverage": "jest --coverage",
-    "test:watch": "jest --watch"
+    "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "dependencies": {
-    "@mcp-server/shared": "*",
-    "@mcp-server/types": "*",
     "@modelcontextprotocol/sdk": "^0.4.0",
     "axios": "^1.6.0",
     "class-transformer": "^0.5.1",
@@ -63,6 +53,35 @@
     "typescript": "^4.9.5"
   },
   "files": [
-    "dist"
-  ]
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "freee",
+    "accounting",
+    "ai",
+    "claude",
+    "model-context-protocol",
+    "api-integration"
+  ],
+  "author": "tsurutan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsurutan/mcp-server.git",
+    "directory": "apps/freee-accounting"
+  },
+  "homepage": "https://github.com/tsurutan/mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/tsurutan/mcp-server/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

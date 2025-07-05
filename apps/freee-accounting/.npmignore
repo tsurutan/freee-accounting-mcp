@@ -1,0 +1,76 @@
+# Development files
+src/
+__tests__/
+*.test.ts
+*.spec.ts
+test/
+tests/
+.env
+.env.*
+
+# Build files
+tsconfig.json
+tsconfig.*.json
+*.tsbuildinfo
+scripts/
+
+# Development dependencies
+node_modules/
+.npm/
+.yarn/
+.pnp.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage and test reports
+coverage/
+.nyc_output/
+junit.xml
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Documentation that shouldn't be published
+docs/
+*.md
+!README.md
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD files
+.github/
+.travis.yml
+.circleci/
+.jenkins/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Development tools
+.eslintrc.*
+.prettierrc.*
+jest.config.*
+.editorconfig

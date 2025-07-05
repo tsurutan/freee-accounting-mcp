@@ -1,0 +1,52 @@
+{
+  "name": "@tsurutan/freee-accounting-mcp",
+  "version": "1.0.0",
+  "description": "MCP Server for freee accounting API integration",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "freee-accounting-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "rm -rf dist && tsc && node scripts/fix-imports.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "axios": "^1.6.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
+    "convict": "^6.2.4",
+    "dotenv": "^17.0.0",
+    "inversify": "^7.5.4",
+    "neverthrow": "^8.2.0",
+    "p-queue": "^8.1.0",
+    "p-retry": "^6.2.1",
+    "reflect-metadata": "^0.2.2",
+    "winston": "^3.17.0",
+    "zod": "^3.22.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "freee",
+    "accounting",
+    "ai",
+    "claude"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/freee-accounting-mcp.git"
+  },
+  "homepage": "https://github.com/yourusername/freee-accounting-mcp#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
