@@ -58,6 +58,8 @@ export const TYPES = {
 
   // MCP Server
   MCPServer: Symbol.for('MCPServer'),
+  RequestHandlers: Symbol.for('RequestHandlers'),
+  Middleware: Symbol.for('Middleware'),
   ServerTransport: Symbol.for('ServerTransport'),
 } as const;
 

@@ -99,7 +99,7 @@ describe('AuthToolHandler', () => {
         // Assert
         expect(result.isOk()).toBe(true);
         expect(mockAuthService.generateAuthUrl).toHaveBeenCalledWith(
-          'http://localhost:3000/callback',
+          'urn:ietf:wg:oauth:2.0:oob',
           'test-state'
         );
         expect(mockResponseBuilder.toolSuccess).toHaveBeenCalledWith(
@@ -152,7 +152,7 @@ describe('AuthToolHandler', () => {
         expect(mockValidator.validateRequired).toHaveBeenCalledWith('auth-code-123', 'code');
         expect(mockAuthService.exchangeCodeForToken).toHaveBeenCalledWith(
           'auth-code-123',
-          'http://localhost:3000/callback'
+          'urn:ietf:wg:oauth:2.0:oob'
         );
         expect(mockResponseBuilder.toolSuccess).toHaveBeenCalledWith(
           tokenResponse,
@@ -202,7 +202,7 @@ describe('AuthToolHandler', () => {
         // Arrange
         const authState = {
           isAuthenticated: true,
-          authMode: 'direct_token' as const,
+          authMode: 'oauth' as const,
           companyId: '2067140',
         };
         const successResponse = { content: [{ type: 'text' as const, text: 'Success' }], isError: false };

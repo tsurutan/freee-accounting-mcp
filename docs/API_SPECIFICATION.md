@@ -14,15 +14,7 @@ freee会計 MCP Serverは、Model Context Protocol (MCP) に準拠したサー�
 
 ### 認証方式
 
-#### 1. 直接トークン認証（推奨）
-環境変数`FREEE_ACCESS_TOKEN`でアクセストークンを直接指定する方式。
-
-**特徴:**
-- 設定が簡単で即座に利用開始可能
-- OAuth認証フローが不要
-- 固定の事業所IDでアクセス
-
-#### 2. OAuth 2.0 認証
+#### OAuth 2.0 認証
 freee公式のOAuth 2.0認証フローを使用する方式。
 
 **特徴:**

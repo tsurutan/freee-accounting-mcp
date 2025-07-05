@@ -41,7 +41,6 @@ describe('MCPServer Integration', () => {
     originalEnv = { ...process.env };
 
     // テスト用環境変数を設定
-    process.env.FREEE_ACCESS_TOKEN = 'test-access-token';
     process.env.FREEE_CLIENT_ID = 'test-client-id';
     process.env.FREEE_CLIENT_SECRET = 'test-client-secret';
 
@@ -162,10 +161,9 @@ describe('MCPServer Integration', () => {
       const envConfig = container.get<EnvironmentConfig>(TYPES.EnvironmentConfig);
 
       // Assert
-      expect(envConfig.accessToken).toBe('test-access-token');
       expect(envConfig.clientId).toBe('test-client-id');
       expect(envConfig.clientSecret).toBe('test-client-secret');
-      expect(envConfig.useDirectToken).toBe(true);
+      expect(envConfig.useOAuth).toBe(true);
     });
 
     it('アプリケーション設定が正しく読み込まれる', () => {

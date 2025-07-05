@@ -15,7 +15,6 @@ import * as path from 'path';
  */
 export interface EnvironmentVariables {
   freee: {
-    accessToken: string;
     clientId: string;
     clientSecret: string;
     redirectUri: string;
@@ -51,13 +50,6 @@ export class EnvironmentConfig {
     // convictスキーマの定義
     this.config = convict({
       freee: {
-        accessToken: {
-          doc: 'freee API access token',
-          format: String,
-          default: '',
-          env: 'FREEE_ACCESS_TOKEN',
-          sensitive: true,
-        },
         clientId: {
           doc: 'freee OAuth client ID',
           format: String,
@@ -74,7 +66,7 @@ export class EnvironmentConfig {
         redirectUri: {
           doc: 'freee OAuth redirect URI',
           format: String,
-          default: 'http://localhost:3000/callback',
+          default: 'urn:ietf:wg:oauth:2.0:oob',
           env: 'FREEE_REDIRECT_URI',
         },
         baseUrl: {
@@ -129,25 +121,10 @@ export class EnvironmentConfig {
   }
 
   /**
-   * 直接トークン認証を使用するかどうか
-   */
-  get useDirectToken(): boolean {
-    return !!this.config.get('freee.accessToken');
-  }
-
-  /**
    * OAuth認証を使用するかどうか
    */
   get useOAuth(): boolean {
-    return !this.useDirectToken &&
-           !!(this.config.get('freee.clientId') && this.config.get('freee.clientSecret'));
-  }
-
-  /**
-   * アクセストークンを取得
-   */
-  get accessToken(): string | undefined {
-    return this.config.get('freee.accessToken') || undefined;
+    return !!(this.config.get('freee.clientId') && this.config.get('freee.clientSecret'));
   }
 
   /**
@@ -175,14 +152,7 @@ export class EnvironmentConfig {
    * 認証モードを取得
    */
   get authMode(): string {
-    return this.useDirectToken ? 'direct' : 'oauth';
-  }
-
-  /**
-   * アクセストークンが設定されているかチェック
-   */
-  get hasAccessToken(): boolean {
-    return !!this.accessToken;
+    return 'oauth';
   }
 
   /**
@@ -244,17 +214,6 @@ export class EnvironmentConfig {
    * 環境変数の検証
    */
   validate(): Result<boolean, AuthError> {
-    if (this.useDirectToken) {
-      const token = this.accessToken;
-      if (!token || token.length < 10) {
-        return err({
-          type: 'INVALID_TOKEN',
-          message: 'FREEE_ACCESS_TOKEN が短すぎます'
-        });
-      }
-      return ok(true);
-    }
-
     // OAuth設定が部分的に存在するかチェック
     const clientId = this.config.get('freee.clientId');
     const clientSecret = this.config.get('freee.clientSecret');
@@ -276,8 +235,8 @@ export class EnvironmentConfig {
     }
 
     return err({
-      type: 'MISSING_TOKEN',
-      message: 'FREEE_ACCESS_TOKEN または OAuth設定を設定してください'
+      type: 'MISSING_OAUTH_CONFIG',
+      message: 'OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください'
     });
   }
 
@@ -286,10 +245,8 @@ export class EnvironmentConfig {
    */
   getSummary() {
     return {
-      authMode: this.useDirectToken ? 'direct_token' : this.useOAuth ? 'oauth' : 'none',
-      useDirectToken: this.useDirectToken,
+      authMode: this.useOAuth ? 'oauth' : 'none',
       useOAuth: this.useOAuth,
-      hasAccessToken: !!this.accessToken,
       hasClientId: !!this.config.get('freee.clientId'),
       hasClientSecret: !!this.config.get('freee.clientSecret'),
       hasOAuthConfig: this.useOAuth,

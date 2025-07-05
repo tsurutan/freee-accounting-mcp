@@ -57,7 +57,6 @@ export class FreeeApiClient {
   private createFreeeClient(): FreeeClient {
     const config: FreeeClientConfig = {
       baseURL: this.envConfig.baseUrl,
-      accessToken: this.envConfig.useDirectToken ? this.envConfig.accessToken : undefined,
       oauthClient: this.envConfig.useOAuth ? this.envConfig.oauthClient : undefined,
       maxRetries: 3,
       retryDelay: 1000,
@@ -73,7 +72,6 @@ export class FreeeApiClient {
 
     this.logger.info('FreeeApiClient initialized', {
       baseURL: config.baseURL,
-      useDirectToken: this.envConfig.useDirectToken,
       useOAuth: this.envConfig.useOAuth,
       enableCache: config.enableCache,
       cacheTtl: config.cacheTtl,
@@ -235,10 +233,6 @@ export class FreeeApiClient {
    * クライアント設定を更新
    */
   updateConfig(config: Partial<FreeeClientConfig>): void {
-    if (config.accessToken) {
-      this.client.setAccessToken(config.accessToken);
-    }
-
     if (config.oauthClient) {
       this.client.setOAuthClient(config.oauthClient);
     }

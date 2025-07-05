@@ -108,22 +108,7 @@ container.bind(TYPES.DebugInterceptor).to(DebugInterceptor).inSingletonScope();
 
 ### 認証方式
 
-#### 方式1: 直接トークン認証（推奨）
-
-事前に取得したアクセストークンを直接使用する方式です。
-
-**メリット:**
-- 設定が簡単
-- 認証フローが不要
-- 即座に利用開始可能
-
-**環境変数:**
-```env
-FREEE_ACCESS_TOKEN=your_access_token
-FREEE_API_BASE_URL=https://api.freee.co.jp  # オプション
-```
-
-#### 方式2: OAuth 2.0認証
+#### OAuth 2.0認証
 
 OAuth 2.0フローを使用してアクセストークンを取得する方式です。
 
@@ -142,11 +127,10 @@ FREEE_REDIRECT_URI=your_redirect_uri
 FREEE_API_BASE_URL=https://api.freee.co.jp  # オプション
 ```
 
-### 認証方式の選択
+### 認証方式の設定
 
-- `FREEE_ACCESS_TOKEN`が設定されている場合は直接トークン認証が優先されます
-- `FREEE_ACCESS_TOKEN`が未設定で`FREEE_CLIENT_ID`と`FREEE_CLIENT_SECRET`が設定されている場合はOAuth認証が使用されます
-- どちらも設定されていない場合は認証エラーとなります
+- `FREEE_CLIENT_ID`と`FREEE_CLIENT_SECRET`が設定されている必要があります
+- 認証情報が設定されていない場合は認証エラーとなります
 
 ## エラーハンドリング
 

@@ -16,8 +16,8 @@ import { TYPES } from '../../container/types.js';
 // E2Eテストの実行条件をチェック
 const shouldRunE2ETests = () => {
   return process.env.RUN_E2E_TESTS === 'true' && 
-         process.env.FREEE_ACCESS_TOKEN && 
-         process.env.FREEE_ACCESS_TOKEN !== 'test-access-token';
+         process.env.FREEE_CLIENT_ID && 
+         process.env.FREEE_CLIENT_SECRET;
 };
 
 // E2Eテストをスキップする場合の条件
@@ -30,7 +30,7 @@ describe('get-deals Tool E2E Test', () => {
 
   beforeAll(() => {
     if (skipE2ETests) {
-      console.log('E2E tests skipped: Set RUN_E2E_TESTS=true and provide valid FREEE_ACCESS_TOKEN to run');
+      console.log('E2E tests skipped: Set RUN_E2E_TESTS=true and provide valid FREEE_CLIENT_ID and FREEE_CLIENT_SECRET to run');
       return;
     }
 
@@ -49,8 +49,9 @@ describe('get-deals Tool E2E Test', () => {
       }
 
       // 認証状態の確認
-      expect(envConfig.hasAccessToken).toBe(true);
-      expect(envConfig.useDirectToken).toBe(true);
+      expect(envConfig.hasClientId).toBe(true);
+      expect(!!envConfig.clientSecret).toBe(true);
+      expect(envConfig.useOAuth).toBe(true);
     });
 
     it('should get deals with default parameters', async () => {

@@ -52,7 +52,7 @@ mcp-server/
 
 ## 特徴
 
-- **柔軟な認証方式**: 直接トークン認証とOAuth 2.0認証の両方をサポート
+- **OAuth 2.0認証**: freee公式認証フローに完全準拠
 - **固定事業所対応**: 事業所ID 2067140 に特化した設定
 - **包括的な取引管理**: 取引の作成・更新・一覧取得をサポート
 - **型安全**: TypeScriptによる完全な型定義
@@ -89,19 +89,9 @@ npm run build
 
 ### 環境変数設定
 
-`.env`ファイルを作成し、認証方式に応じて以下の環境変数を設定してください：
+`.env`ファイルを作成し、以下の環境変数を設定してください：
 
-#### 方式1: 直接トークン認証（推奨）
-
-```env
-# freee APIアクセストークン
-FREEE_ACCESS_TOKEN=your_access_token
-
-# オプション設定
-FREEE_API_BASE_URL=https://api.freee.co.jp
-```
-
-#### 方式2: OAuth認証
+#### OAuth 2.0認証
 
 ```env
 # OAuth設定
@@ -114,7 +104,6 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 ```
 
 **注意**:
-- `FREEE_ACCESS_TOKEN`が設定されている場合は、直接トークン認証が優先されます。
 - OAuth認証では事業所選択機能を制御できます。
 - 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
 - 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
@@ -125,73 +114,25 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 
 ### 1. MCP設定の追加
 
-Claude Codeの設定ファイルに以下を追加します：
+Claude Codeに以下のコマンドでMCPサーバーを追加します：
 
 ```bash
-# MacOS/Linux
-claude mcp install local /path/to/your/mcp-server/apps/freee-accounting
+# プロジェクトをビルド
+npm run build
 
-# または、グローバルインストール後
-claude mcp install npm freee-accounting-mcp
+# MCPサーバーを追加
+claude mcp add freee-accounting \
+  -e FREEE_CLIENT_ID=your_client_id \
+  -e FREEE_CLIENT_SECRET=your_client_secret \
+  -e FREEE_REDIRECT_URI=http://localhost:3000/callback \
+  -- node /path/to/mcp-server/apps/freee-accounting/dist/index.js
+
+# 設定を確認
+claude mcp list
+claude mcp get freee-accounting
 ```
 
-### 2. 設定ファイルの確認
-
-Claude Codeが自動的に作成する設定ファイルを確認します：
-
-```json
-{
-  "mcpServers": {
-    "freee-accounting": {
-      "command": "node",
-      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
-      "env": {
-        "FREEE_ACCESS_TOKEN": "your_access_token"
-      }
-    }
-  }
-}
-```
-
-### 3. 環境変数の設定
-
-使用する認証方式に応じて、MCPサーバーの設定に環境変数を追加します：
-
-**直接トークン認証の場合:**
-```json
-{
-  "mcpServers": {
-    "freee-accounting": {
-      "command": "node",
-      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
-      "env": {
-        "FREEE_ACCESS_TOKEN": "your_access_token",
-        "FREEE_API_BASE_URL": "https://api.freee.co.jp"
-      }
-    }
-  }
-}
-```
-
-**OAuth認証の場合:**
-```json
-{
-  "mcpServers": {
-    "freee-accounting": {
-      "command": "node",
-      "args": ["/path/to/your/mcp-server/apps/freee-accounting/dist/index.js"],
-      "env": {
-        "FREEE_CLIENT_ID": "your_client_id",
-        "FREEE_CLIENT_SECRET": "your_client_secret",
-        "FREEE_REDIRECT_URI": "http://localhost:3000/callback",
-        "FREEE_API_BASE_URL": "https://api.freee.co.jp"
-      }
-    }
-  }
-}
-```
-
-### 4. Claude Codeでの使用
+### 2. Claude Codeでの使用
 
 MCPサーバーがインストールされると、Claude Codeで以下のリソースとツールが利用できます：
 
@@ -200,7 +141,7 @@ MCPサーバーがインストールされると、Claude Codeで以下のリソ
 - **試算表の分析**: 月次・年次の財務データの分析
 - **認証管理**: freee APIへの認証とアクセス管理
 
-### 5. 使用例
+### 3. 使用例
 
 Claude Codeで以下のようにMCPサーバーを活用できます：
 
@@ -218,20 +159,6 @@ Claude Codeで以下のようにMCPサーバーを活用できます：
 ## 従来の使用方法
 
 ### 認証の設定
-
-#### 直接トークン認証の場合
-
-1. freee APIのアクセストークンを取得
-2. 環境変数`FREEE_ACCESS_TOKEN`に設定
-3. MCP Serverを起動
-
-```bash
-# 環境変数を設定
-export FREEE_ACCESS_TOKEN="your_access_token"
-
-# MCP Serverを起動
-npm run build && node apps/freee-accounting/dist/index.js
-```
 
 #### OAuth認証の場合
 

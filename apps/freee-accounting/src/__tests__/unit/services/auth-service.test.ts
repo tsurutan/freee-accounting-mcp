@@ -22,8 +22,7 @@ describe('AuthService', () => {
 
     // モックの作成
     mockEnvConfig = {
-      useDirectToken: true,
-      useOAuth: false,
+      useOAuth: true,
       validate: jest.fn(),
       getSummary: jest.fn(),
     } as any;
@@ -54,66 +53,10 @@ describe('AuthService', () => {
   });
 
   describe('checkAuthenticationStatus', () => {
-    it('直接トークン認証が成功する場合', () => {
-      // Arrange
-      const mockEnvConfigWithDirectToken = {
-        ...mockEnvConfig,
-        useDirectToken: true,
-        validate: jest.fn().mockReturnValue({ isErr: () => false } as any),
-      } as any;
-      container.unbind(TYPES.EnvironmentConfig);
-      container.bind<EnvironmentConfig>(TYPES.EnvironmentConfig).toConstantValue(mockEnvConfigWithDirectToken);
-      authService = container.get(AuthService);
-
-      // Act
-      const result = authService.checkAuthenticationStatus();
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        expect(result.value.isAuthenticated).toBe(true);
-        expect(result.value.authMode).toBe('direct_token');
-      }
-      expect(mockLogger.info).toHaveBeenCalledWith('Direct token authentication successful');
-    });
-
-    it('直接トークン認証が失敗する場合', () => {
-      // Arrange
-      const validationError = { message: 'Invalid token' };
-      const mockEnvConfigWithDirectToken = {
-        ...mockEnvConfig,
-        useDirectToken: true,
-        validate: jest.fn().mockReturnValue({ 
-          isErr: () => true, 
-          error: validationError 
-        } as any),
-      } as any;
-      container.unbind(TYPES.EnvironmentConfig);
-      container.bind<EnvironmentConfig>(TYPES.EnvironmentConfig).toConstantValue(mockEnvConfigWithDirectToken);
-      authService = container.get(AuthService);
-      
-      const authError = { type: 'AUTH_ERROR', message: 'Invalid token', retryable: false };
-      mockErrorHandler.authError.mockReturnValue(authError as any);
-
-      // Act
-      const result = authService.checkAuthenticationStatus();
-
-      // Assert
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error).toEqual(authError);
-      }
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Direct token authentication failed', 
-        { error: validationError }
-      );
-    });
-
     it('OAuth認証モードの場合', () => {
       // Arrange
       const mockEnvConfigWithOAuth = {
         ...mockEnvConfig,
-        useDirectToken: false,
         useOAuth: true,
       } as any;
       container.unbind(TYPES.EnvironmentConfig);
@@ -135,7 +78,6 @@ describe('AuthService', () => {
       // Arrange
       const mockEnvConfigWithoutAuth = {
         ...mockEnvConfig,
-        useDirectToken: false,
         useOAuth: false,
       } as any;
       container.unbind(TYPES.EnvironmentConfig);

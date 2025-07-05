@@ -16,7 +16,7 @@ describe('FreeeOAuthClient', () => {
     config = {
       clientId: 'test_client_id',
       clientSecret: 'test_client_secret',
-      redirectUri: 'http://localhost:3000/callback',
+      redirectUri: 'urn:ietf:wg:oauth:2.0:oob',
       baseUrl: 'https://api.freee.co.jp',
     };
     oauthClient = new FreeeOAuthClient(config);
@@ -28,7 +28,7 @@ describe('FreeeOAuthClient', () => {
 
       expect(authUrl).toContain('https://accounts.secure.freee.co.jp/public_api/authorize');
       expect(authUrl).toContain('client_id=test_client_id');
-      expect(authUrl).toContain('redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fcallback');
+      expect(authUrl).toContain('redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob');
       expect(authUrl).toContain('response_type=code');
       expect(authUrl).toContain('prompt=select_company');
       expect(authUrl).toContain('state='); // ランダムなstateが生成される

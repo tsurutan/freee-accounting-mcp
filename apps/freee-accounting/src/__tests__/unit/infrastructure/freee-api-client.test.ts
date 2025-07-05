@@ -40,11 +40,9 @@ describe('FreeeApiClient', () => {
 
     // モックの作成
     mockEnvConfig = {
-      useDirectToken: true,
-      useOAuth: false,
+      useOAuth: true,
       baseUrl: 'https://api.freee.co.jp',
-      accessToken: 'test-access-token',
-      oauthClient: undefined,
+      oauthClient: {},
     } as any;
 
     mockErrorHandler = {

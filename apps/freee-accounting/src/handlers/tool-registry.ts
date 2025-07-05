@@ -25,10 +25,10 @@ export class ToolRegistry {
     @inject(TYPES.Logger) private logger: Logger,
     @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
     // 各ツールハンドラーを注入
-    @inject(AuthToolHandler) authHandler: AuthToolHandler,
-    @inject(DealToolHandler) dealHandler: DealToolHandler,
-    @inject(CompanyToolHandler) companyHandler: CompanyToolHandler,
-    @inject(SystemToolHandler) systemHandler: SystemToolHandler
+    @inject(TYPES.AuthToolHandler) authHandler: AuthToolHandler,
+    @inject(TYPES.DealToolHandler) dealHandler: DealToolHandler,
+    @inject(TYPES.CompanyToolHandler) companyHandler: CompanyToolHandler,
+    @inject(TYPES.SystemToolHandler) systemHandler: SystemToolHandler
   ) {
     // ハンドラーを登録
     this.registerHandler(authHandler);

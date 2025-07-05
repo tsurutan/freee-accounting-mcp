@@ -24,8 +24,8 @@ export class MCPServer {
     @inject(TYPES.Logger) private logger: Logger,
     @inject(TYPES.AppConfig) private appConfig: AppConfig,
     @inject(TYPES.EnvironmentConfig) private envConfig: EnvironmentConfig,
-    @inject(RequestHandlers) private requestHandlers: RequestHandlers,
-    @inject(Middleware) private middleware: Middleware
+    @inject(TYPES.RequestHandlers) private requestHandlers: RequestHandlers,
+    @inject(TYPES.Middleware) private middleware: Middleware
   ) {
     this.server = new Server({
       name: 'freee-accounting-mcp',

@@ -25,7 +25,8 @@ describe('freee API Integration', () => {
     originalEnv = { ...process.env };
 
     // テスト用環境変数を設定
-    process.env.FREEE_ACCESS_TOKEN = 'test-access-token';
+    process.env.FREEE_CLIENT_ID = 'test-client-id';
+    process.env.FREEE_CLIENT_SECRET = 'test-client-secret';
     process.env.FREEE_API_BASE_URL = 'https://api.freee.co.jp';
 
     // DIコンテナを初期化
@@ -48,35 +49,15 @@ describe('freee API Integration', () => {
   });
 
   describe('認証フロー', () => {
-    it('直接トークン認証が正常に動作する', () => {
+    it('OAuth認証設定が正常に動作する', () => {
       // Act
       const authResult = authService.checkAuthenticationStatus();
 
       // Assert
       expect(authResult.isOk()).toBe(true);
       if (authResult.isOk()) {
-        expect(authResult.value.isAuthenticated).toBe(true);
-        expect(authResult.value.authMode).toBe('direct_token');
-      }
-    });
-
-    it('OAuth認証設定が正常に動作する', () => {
-      // Arrange
-      process.env.FREEE_ACCESS_TOKEN = '';
-      process.env.FREEE_CLIENT_ID = 'test-client-id';
-      process.env.FREEE_CLIENT_SECRET = 'test-client-secret';
-      
-      // 新しいコンテナで再初期化
-      const newContainer = new ServiceContainer();
-      const newAuthService = newContainer.get<AuthService>(TYPES.AuthService);
-
-      // Act
-      const authResult = newAuthService.checkAuthenticationStatus();
-
-      // Assert
-      expect(authResult.isOk()).toBe(true);
-      if (authResult.isOk()) {
         expect(authResult.value.authMode).toBe('oauth');
+        expect(authResult.value.isAuthenticated).toBe(false); // OAuthは初期状態では未認証
       }
     });
   });

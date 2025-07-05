@@ -100,7 +100,7 @@ MCP handlers extend base classes for consistent behavior:
 - Handlers are registered in registries for automatic discovery
 
 ### Authentication Flow
-1. Support for both OAuth 2.0 and direct token authentication
+1. OAuth 2.0 authentication with freee API
 2. Token persistence and automatic refresh
 3. Company selection during OAuth flow
 4. Secure token storage with encryption
@@ -125,9 +125,6 @@ Create `.env` file with:
 FREEE_CLIENT_ID=your_client_id
 FREEE_CLIENT_SECRET=your_client_secret
 FREEE_REDIRECT_URI=http://localhost:3000/callback
-
-# OR for direct token auth
-FREEE_ACCESS_TOKEN=your_access_token
 
 # Optional
 FREEE_API_BASE_URL=https://api.freee.co.jp

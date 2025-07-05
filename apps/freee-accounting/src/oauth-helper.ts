@@ -20,14 +20,12 @@ async function getOAuthUrl() {
     const envConfig = container.get<EnvironmentConfig>(TYPES.EnvironmentConfig);
 
     console.error('環境設定:', {
-      useDirectToken: envConfig.useDirectToken,
       useOAuth: envConfig.useOAuth,
-      hasAccessToken: envConfig.hasAccessToken,
       hasClientId: envConfig.hasClientId,
     });
 
     if (!envConfig.useOAuth) {
-      console.error('❌ OAuth設定が無効です。FREEE_ACCESS_TOKENをコメントアウトしてください。');
+      console.error('❌ OAuth設定が無効です。FREEE_CLIENT_IDとFREEE_CLIENT_SECRETを設定してください。');
       return;
     }
 
@@ -81,12 +79,9 @@ async function exchangeCodeForToken(code: string) {
     console.error('Refresh Token:', tokenResponse.refresh_token);
     console.error('Expires In:', tokenResponse.expires_in, 'seconds');
 
-    console.error('\n📋 .envファイルを更新してください:');
-    console.error(`FREEE_ACCESS_TOKEN=${tokenResponse.access_token}`);
-
-    if (tokenResponse.refresh_token) {
-      console.error(`FREEE_REFRESH_TOKEN=${tokenResponse.refresh_token}`);
-    }
+    console.error('\n📋 OAuth認証完了!');
+    console.error('トークンは自動的にセッションに保存されます。');
+    console.error('アクセストークンは必要に応じて使用されます。');
 
   } catch (error) {
     console.error('❌ トークン取得エラー:', error);

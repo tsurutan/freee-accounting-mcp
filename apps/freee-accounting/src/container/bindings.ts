@@ -145,9 +145,9 @@ function configureHandlerBindings(container: Container): void {
  * サーバーのバインディング
  */
 function configureServerBindings(container: Container): void {
-  container.bind(MCPServer).toSelf().inSingletonScope();
-  container.bind(RequestHandlers).toSelf().inSingletonScope();
-  container.bind(Middleware).toSelf().inSingletonScope();
+  container.bind(TYPES.MCPServer).to(MCPServer).inSingletonScope();
+  container.bind(TYPES.RequestHandlers).to(RequestHandlers).inSingletonScope();
+  container.bind(TYPES.Middleware).to(Middleware).inSingletonScope();
 }
 
 /**

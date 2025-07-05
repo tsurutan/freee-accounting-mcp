@@ -223,7 +223,7 @@ export interface OAuthAuthorizationUrlParams {
 
 export interface AuthContext {
   isAuthenticated: boolean;
-  authMode: string;
+  authMode: 'oauth' | 'none';
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: Date;

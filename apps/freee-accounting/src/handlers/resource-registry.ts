@@ -23,8 +23,8 @@ export class ResourceRegistry {
     @inject(TYPES.Logger) private logger: Logger,
     @inject(TYPES.ErrorHandler) private errorHandler: ErrorHandler,
     // 各リソースハンドラーを注入
-    @inject(CompaniesResourceHandler) companiesHandler: CompaniesResourceHandler,
-    @inject(DealsResourceHandler) dealsHandler: DealsResourceHandler
+    @inject(TYPES.CompaniesResourceHandler) companiesHandler: CompaniesResourceHandler,
+    @inject(TYPES.DealsResourceHandler) dealsHandler: DealsResourceHandler
   ) {
     // ハンドラーを登録
     this.registerHandler(companiesHandler);

@@ -23,9 +23,7 @@ async function testApiClient() {
     // 環境設定を確認
     const envConfig = container.get(TYPES.EnvironmentConfig) as any;
     console.error('環境設定:', {
-      useDirectToken: envConfig.useDirectToken,
       useOAuth: envConfig.useOAuth,
-      hasAccessToken: envConfig.hasAccessToken,
       hasClientId: envConfig.hasClientId,
       baseUrl: envConfig.baseUrl,
     });

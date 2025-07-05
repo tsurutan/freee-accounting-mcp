@@ -118,7 +118,7 @@ export class Middleware {
     // 認証が必要なメソッドの場合、環境変数をチェック
     const envSummary = this.envConfig.getSummary();
     
-    if (!envSummary.hasAccessToken && !envSummary.hasClientId) {
+    if (!envSummary.hasClientId) {
       this.logger.warn('Authentication required but not configured', {
         method: requestInfo.method,
         requestId: requestInfo.requestId,

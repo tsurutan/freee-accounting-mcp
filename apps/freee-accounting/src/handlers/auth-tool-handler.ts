@@ -133,7 +133,7 @@ export class AuthToolHandler extends BaseToolHandler {
       const state = args?.state as string | undefined;
       const enableCompanySelection = args?.enable_company_selection !== false; // デフォルトtrue
 
-      const redirectUri = this.envConfig.oauthConfig?.redirectUri || 'http://localhost:3000/callback';
+      const redirectUri = this.envConfig.oauthConfig?.redirectUri || 'urn:ietf:wg:oauth:2.0:oob';
       const authUrlResult = this.authService.generateAuthUrl(redirectUri, state);
 
       if (authUrlResult.isErr()) {

@@ -144,7 +144,6 @@ describe('get-deals Tool Integration Test', () => {
     originalEnv = { ...process.env };
 
     // テスト用環境変数を設定
-    process.env.FREEE_ACCESS_TOKEN = 'test-access-token';
     process.env.FREEE_CLIENT_ID = 'test-client-id';
     process.env.FREEE_CLIENT_SECRET = 'test-client-secret';
     process.env.FREEE_BASE_URL = 'https://api.freee.co.jp';
@@ -183,10 +182,9 @@ describe('get-deals Tool Integration Test', () => {
 
     // 環境設定（モック）
     const mockEnvConfig = {
-      useDirectToken: true,
-      useOAuth: false,
-      hasAccessToken: true,
+      useOAuth: true,
       hasClientId: true,
+      hasClientSecret: true,
       baseUrl: 'https://api.freee.co.jp'
     };
     container.bind(TYPES.EnvironmentConfig).toConstantValue(mockEnvConfig);

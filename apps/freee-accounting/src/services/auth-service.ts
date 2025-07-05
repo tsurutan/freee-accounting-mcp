@@ -17,7 +17,7 @@ import { OAuthTokens } from '@mcp-server/types';
  */
 export interface AuthState {
   isAuthenticated: boolean;
-  authMode: 'direct_token' | 'oauth' | 'none';
+  authMode: 'oauth' | 'none';
   expiresAt?: number;
   companyId?: string | number;
   externalCid?: string;
@@ -69,7 +69,6 @@ export class AuthService implements IAuthService {
         message: authState.isOk() ? '認証サービスは正常です' : '認証に問題があります',
         details: {
           authMode: this.envConfig.authMode,
-          hasAccessToken: this.envConfig.hasAccessToken,
           hasClientId: this.envConfig.hasClientId,
         },
         timestamp: new Date(),
@@ -99,22 +98,6 @@ export class AuthService implements IAuthService {
    */
   checkAuthenticationStatus(): Result<AuthState, AppError> {
     this.logger.debug('Checking authentication status');
-
-    if (this.envConfig.useDirectToken) {
-      // 直接トークン認証の場合
-      const validation = this.envConfig.validate();
-      if (validation.isErr()) {
-        const authError = this.errorHandler.authError(validation.error.message);
-        this.logger.warn('Direct token authentication failed', { error: validation.error });
-        return err(authError);
-      }
-
-      this.logger.info('Direct token authentication successful');
-      return ok({
-        isAuthenticated: true,
-        authMode: 'direct_token',
-      });
-    }
 
     if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
       // OAuth認証の場合
@@ -146,7 +129,7 @@ export class AuthService implements IAuthService {
 
     // 認証設定が不正
     const authError = this.errorHandler.authError(
-      'FREEE_ACCESS_TOKEN または OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください'
+      'OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください'
     );
     this.logger.error('Authentication configuration is invalid');
     return err(authError);
@@ -166,7 +149,7 @@ export class AuthService implements IAuthService {
   generateAuthUrl(redirectUri: string, state?: string): Result<string, AppError> {
     if (!this.envConfig.useOAuth || !this.envConfig.oauthClient) {
       const error = this.errorHandler.authError(
-        'OAuth認証が設定されていません。FREEE_ACCESS_TOKENを使用している場合、このツールは不要です。'
+        'OAuth認証が設定されていません。'
       );
       this.logger.warn('OAuth not configured for auth URL generation');
       return err(error);
@@ -193,7 +176,7 @@ export class AuthService implements IAuthService {
   async exchangeAuthCode(code: string): Promise<Result<any, AppError>> {
     if (!this.envConfig.useOAuth || !this.envConfig.oauthClient) {
       const error = this.errorHandler.authError(
-        'OAuth認証が設定されていません。FREEE_ACCESS_TOKENを使用している場合、このツールは不要です。'
+        'OAuth認証が設定されていません。'
       );
       this.logger.warn('OAuth not configured for token exchange');
       return err(error);
@@ -266,9 +249,6 @@ export class AuthService implements IAuthService {
     const authState = authResult.value;
 
     switch (authState.authMode) {
-      case 'direct_token':
-        return '認証済み（直接トークン認証）\n認証方式: ACCESS_TOKEN';
-
       case 'oauth':
         let summary = '認証済み（OAuth認証）';
 
@@ -296,7 +276,7 @@ export class AuthService implements IAuthService {
         return summary;
 
       default:
-        return '認証設定が不正です。FREEE_ACCESS_TOKEN または OAuth設定を設定してください。';
+        return '認証設定が不正です。OAuth設定を設定してください。';
     }
   }
 
@@ -311,11 +291,6 @@ export class AuthService implements IAuthService {
     }
 
     const authState = authResult.value;
-
-    if (authState.authMode === 'direct_token') {
-      // 直接トークンの場合、有効期限は不明
-      return ok({ isValid: true });
-    }
 
     if (authState.authMode === 'oauth' && authState.expiresAt) {
       const now = Math.floor(Date.now() / 1000);
@@ -372,13 +347,7 @@ export class AuthService implements IAuthService {
    * 現在の認証コンテキストを取得
    */
   getAuthContext(): AuthContext {
-    if (this.envConfig.useDirectToken) {
-      return {
-        isAuthenticated: !!this.envConfig.accessToken,
-        authMode: 'direct_token',
-        accessToken: this.envConfig.accessToken,
-      };
-    } else if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
+    if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
       const authState = this.envConfig.oauthClient.getAuthState();
       return {
         isAuthenticated: authState.isAuthenticated,

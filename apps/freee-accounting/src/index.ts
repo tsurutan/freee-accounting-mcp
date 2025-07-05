@@ -21,7 +21,7 @@ async function main(): Promise<void> {
     // DIコンテナから必要なサービスを取得
     const logger = serviceContainer.get<Logger>(TYPES.Logger);
     const envConfig = serviceContainer.get<EnvironmentConfig>(TYPES.EnvironmentConfig);
-    const mcpServer = serviceContainer.get<MCPServer>(MCPServer);
+    const mcpServer = serviceContainer.get<MCPServer>(TYPES.MCPServer);
 
     // 環境変数の検証
     const validation = envConfig.validate();
@@ -35,7 +35,6 @@ async function main(): Promise<void> {
     const envSummary = envConfig.getSummary();
     logger.info('freee会計 MCP Server starting', {
       authMode: envSummary.authMode,
-      hasAccessToken: envSummary.hasAccessToken,
       hasClientId: envSummary.hasClientId,
       baseUrl: envSummary.baseUrl,
       debug: envSummary.debug,
