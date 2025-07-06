@@ -11,6 +11,11 @@ import { AppConfig } from '../../config/app-config.js';
 import { EnvironmentConfig } from '../../config/environment-config.js';
 import { TYPES } from '../../container/types.js';
 import { RequestHandlers } from '../../server/request-handlers.js';
+import * as fs from 'fs';
+
+// Mock fs module to prevent reading .env file
+jest.mock('fs');
+const mockFs = fs as jest.Mocked<typeof fs>;
 
 // Access global mocks (set up by moduleNameMapper)
 declare global {
@@ -34,6 +39,9 @@ describe('MCPServer Integration', () => {
     process.env.FREEE_CLIENT_ID = 'test-client-id';
     process.env.FREEE_CLIENT_SECRET = 'test-client-secret';
     process.env.FREEE_COMPANY_ID = '2067140';
+
+    // Mock fs to prevent reading .env file
+    mockFs.existsSync.mockReturnValue(false);
   });
 
   afterAll(() => {
@@ -42,6 +50,10 @@ describe('MCPServer Integration', () => {
   });
 
   beforeEach(() => {
+    // fsモックを設定
+    mockFs.existsSync.mockReturnValue(false);
+    mockFs.readFileSync.mockReturnValue('');
+
     // DIコンテナを初期化
     container = new ServiceContainer();
     mcpServer = container.get(TYPES.MCPServer);
@@ -135,8 +147,8 @@ describe('MCPServer Integration', () => {
       const envConfig = container.get<EnvironmentConfig>(TYPES.EnvironmentConfig);
 
       // Assert
-      expect(envConfig.clientId).toBe('***REMOVED***'); // From .env file
-      expect(envConfig.clientSecret).toBe('***REMOVED***'); // From .env file
+      expect(envConfig.clientId).toBe('test-client-id'); // From test setup
+      expect(envConfig.clientSecret).toBe('test-client-secret'); // From test setup
       expect(envConfig.useOAuth).toBe(true);
     });
 
