@@ -54,7 +54,32 @@ module.exports = {
   ignorePatterns: [
     'dist/',
     'node_modules/',
-    '*.js',
     '*.d.ts',
+    'src/**/__tests__/**/*.js',
+    'src/**/__mocks__/**/*.js',
+  ],
+  overrides: [
+    {
+      files: ['**/*.js'],
+      env: {
+        node: true,
+        jest: true,
+      },
+      globals: {
+        jest: 'readonly',
+        global: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        require: 'readonly',
+      },
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'script',
+      },
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+      },
+    },
   ],
 };

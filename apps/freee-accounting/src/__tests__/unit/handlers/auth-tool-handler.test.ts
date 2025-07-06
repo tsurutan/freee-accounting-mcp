@@ -131,7 +131,7 @@ describe('AuthToolHandler', () => {
           'test-state'
         );
         expect(mockResponseBuilder.toolSuccessWithData).toHaveBeenCalledWith(
-          { authUrl: authUrl, enableCompanySelection: true },
+          { authUrl, enableCompanySelection: true },
           expect.stringContaining('認証URL:')
         );
       });

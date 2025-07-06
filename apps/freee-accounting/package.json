@@ -14,7 +14,7 @@
     "clean": "rm -rf dist && rm -f tsconfig.tsbuildinfo",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint 'src/**/*.ts' --ignore-pattern 'src/**/*.js'",
     "prepublishOnly": "npm run clean && npm run build && npm run test",
     "debug": "npx @modelcontextprotocol/inspector tsx src/index.ts",
     "debug:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
