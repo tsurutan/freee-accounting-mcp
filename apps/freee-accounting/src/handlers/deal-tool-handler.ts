@@ -8,18 +8,10 @@ import { TYPES } from '../container/types.js';
 import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
+import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { DateUtils } from '../utils/date-utils.js';
 import { CreateDealDto, UpdateDealDto, GetDealsDto } from '../utils/validator.js';
 import { MCPToolResponse } from '../utils/response-builder.js';
-
-// 一時的な型定義
-interface FreeeClient {
-  getDeals(params: any): Promise<{ deals: any[]; meta: { total_count: number } }>;
-  get(url: string): Promise<{ data: any }>;
-  post(url: string, data: any): Promise<{ data: any }>;
-  put(url: string, data: any): Promise<{ data: any }>;
-  delete(url: string): Promise<{ data: any }>;
-}
 
 /**
  * 取引関連ツールハンドラー
@@ -34,7 +26,7 @@ export class DealToolHandler extends BaseToolHandler {
     @inject(TYPES.Validator) validator: any,
     @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
     @inject(TYPES.DateUtils) private readonly dateUtils: DateUtils,
-    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeClient
+    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeApiClient
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
   }
@@ -371,8 +363,7 @@ export class DealToolHandler extends BaseToolHandler {
       const dealId = args.deal_id;
 
       // freee APIから取引詳細を取得
-      const response = await this.freeeClient.get(`/api/1/deals/${dealId}?company_id=${companyId}`);
-      const deal = response.data;
+      const deal = await this.freeeClient.getDealDetails(dealId, companyId);
 
       this.logger.info('Deal details retrieved successfully', {
         dealId,
@@ -409,8 +400,10 @@ export class DealToolHandler extends BaseToolHandler {
       const companyId = this.appConfig.companyId;
 
       // freee APIで取引を作成
-      const response = await this.freeeClient.post(`/api/1/deals?company_id=${companyId}`, createDealDto);
-      const createdDeal = response.data;
+      const createdDeal = await this.freeeClient.createDeal({
+        ...createDealDto,
+        company_id: companyId
+      });
 
       this.logger.info('Deal created successfully', {
         dealId: createdDeal?.id,
@@ -453,8 +446,10 @@ export class DealToolHandler extends BaseToolHandler {
       const dealId = updateDealDto.deal_id;
 
       // freee APIで取引を更新
-      const response = await this.freeeClient.put(`/api/1/deals/${dealId}?company_id=${companyId}`, updateDealDto);
-      const updatedDeal = response.data;
+      const updatedDeal = await this.freeeClient.updateDeal(dealId, {
+        ...updateDealDto,
+        company_id: companyId
+      });
 
       this.logger.info('Deal updated successfully', {
         dealId,
@@ -486,7 +481,7 @@ export class DealToolHandler extends BaseToolHandler {
       const dealId = args.deal_id;
 
       // freee APIで取引を削除
-      await this.freeeClient.delete(`/api/1/deals/${dealId}?company_id=${companyId}`);
+      await this.freeeClient.deleteDeal(dealId, companyId);
 
       this.logger.info('Deal deleted successfully', { dealId });
 

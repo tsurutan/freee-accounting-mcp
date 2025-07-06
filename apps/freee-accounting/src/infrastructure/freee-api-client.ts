@@ -4,12 +4,77 @@
 
 import { injectable, inject } from 'inversify';
 import { Result, ok, err } from 'neverthrow';
-import { FreeeClient, FreeeClientConfig } from '@mcp-server/shared';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { TYPES } from '../container/types.js';
 import { EnvironmentConfig } from '../config/environment-config.js';
 import { Logger } from './logger.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { DebugInterceptor } from './debug-interceptor.js';
+
+/**
+ * FreeeClient設定の型定義
+ */
+export interface FreeeClientConfig {
+  accessToken?: string;
+  baseURL?: string;
+  timeout?: number;
+  retryCount?: number;
+  retryDelay?: number;
+  maxRetries?: number;
+  oauthClient?: any;
+  enableCache?: boolean;
+  cacheTtl?: number;
+}
+
+/**
+ * FreeeClientインターフェース
+ */
+export interface FreeeClient {
+  get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
+  setAccessToken(token: string): void;
+  setOAuthClient?(client: any): void;
+}
+
+/**
+ * FreeeClient実装クラス
+ */
+export class FreeeClientImpl implements FreeeClient {
+  private axiosInstance: AxiosInstance;
+  
+  constructor(private config: FreeeClientConfig = {}) {
+    this.axiosInstance = axios.create({
+      baseURL: config.baseURL || 'https://api.freee.co.jp',
+      timeout: config.timeout || 30000,
+    });
+  }
+  
+  async get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.get(url, config);
+  }
+  
+  async post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.post(url, data, config);
+  }
+  
+  async put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.put(url, data, config);
+  }
+  
+  async delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+    return this.axiosInstance.delete(url, config);
+  }
+  
+  setAccessToken(token: string): void {
+    this.axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }
+  
+  setOAuthClient(client: any): void {
+    // OAuth client setter implementation
+  }
+}
 
 /**
  * API呼び出しのコンテキスト情報
@@ -65,7 +130,7 @@ export class FreeeApiClient {
       timeout: 30000, // 30秒
     };
 
-    const client = new FreeeClient(config);
+    const client = new FreeeClientImpl(config);
 
     // デバッグインターセプターを設定
     this.debugInterceptor.setupInterceptors(client);
@@ -129,17 +194,17 @@ export class FreeeApiClient {
 
       const duration = Date.now() - startTime;
       const result: ApiCallResult<T> = {
-        data: responseData as T,
-        status: 200, // FreeeClientは成功時のみデータを返すため
-        headers: {}, // FreeeClientはヘッダー情報を返さないため
+        data: responseData.data as T,
+        status: responseData.status || 200,
+        headers: responseData.headers || {},
         duration,
         context: callContext,
       };
 
-      this.logger.apiRequest(method, endpoint, 200, duration, {
+      this.logger.apiRequest(method, endpoint, result.status, duration, {
         operation: callContext.operation,
         requestId,
-        dataSize: this.getDataSize(responseData),
+        dataSize: this.getDataSize(responseData.data),
       });
 
       return ok(result);
@@ -233,7 +298,7 @@ export class FreeeApiClient {
    * クライアント設定を更新
    */
   updateConfig(config: Partial<FreeeClientConfig>): void {
-    if (config.oauthClient) {
+    if (config.oauthClient && this.client.setOAuthClient) {
       this.client.setOAuthClient(config.oauthClient);
     }
 
@@ -282,6 +347,14 @@ export class FreeeApiClient {
       // result.value.dataがfreee APIのレスポンス形式 { companies: [...] } の場合
       if (result.value.data && typeof result.value.data === 'object' && 'companies' in result.value.data) {
         return result.value.data;
+      }
+
+      // result.value.dataに'data'プロパティがある場合（二重ラップされた形式）
+      if (result.value.data && typeof result.value.data === 'object' && 'data' in result.value.data) {
+        const innerData = result.value.data.data;
+        if (innerData && typeof innerData === 'object' && 'companies' in innerData) {
+          return innerData;
+        }
       }
 
       // result.value.dataが配列の場合（予期しない形式）
@@ -339,6 +412,78 @@ export class FreeeApiClient {
     } else {
       this.logger.error('FreeeApiClient.getDeals failed', { error: result.error });
       throw new Error(`Failed to get deals: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引詳細を取得
+   */
+  async getDealDetails(dealId: number, companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getDealDetails called', { dealId, companyId });
+
+    const result = await this.get(`/api/1/deals/${dealId}?company_id=${companyId}`, undefined, {
+      operation: 'get_deal_details',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getDealDetails failed', { error: result.error });
+      throw new Error(`Failed to get deal details: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引を作成
+   */
+  async createDeal(dealData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.createDeal called', { dealData });
+
+    const result = await this.post('/api/1/deals', dealData, {
+      operation: 'create_deal',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.createDeal failed', { error: result.error });
+      throw new Error(`Failed to create deal: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引を更新
+   */
+  async updateDeal(dealId: number, dealData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.updateDeal called', { dealId, dealData });
+
+    const result = await this.put(`/api/1/deals/${dealId}`, dealData, {
+      operation: 'update_deal',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.updateDeal failed', { error: result.error });
+      throw new Error(`Failed to update deal: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引を削除
+   */
+  async deleteDeal(dealId: number, companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.deleteDeal called', { dealId, companyId });
+
+    const result = await this.delete(`/api/1/deals/${dealId}?company_id=${companyId}`, {
+      operation: 'delete_deal',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.deleteDeal failed', { error: result.error });
+      throw new Error(`Failed to delete deal: ${result.error.message}`);
     }
   }
 }

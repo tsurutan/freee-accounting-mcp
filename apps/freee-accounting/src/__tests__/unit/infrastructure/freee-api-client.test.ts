@@ -22,10 +22,7 @@ const mockFreeeClient = {
   getDeals: jest.fn(),
 };
 
-// FreeeClientクラスのモック
-jest.mock('@mcp-server/shared', () => ({
-  FreeeClient: jest.fn().mockImplementation(() => mockFreeeClient),
-}));
+// Mock removed since we no longer use @mcp-server/shared
 
 describe('FreeeApiClient', () => {
   let container: Container;
@@ -69,6 +66,9 @@ describe('FreeeApiClient', () => {
     container.bind(FreeeApiClient).toSelf();
 
     freeeApiClient = container.get(FreeeApiClient);
+    
+    // FreeeClientのモックを設定
+    (freeeApiClient as any).client = mockFreeeClient;
 
     // モックのリセット
     jest.clearAllMocks();
@@ -258,14 +258,19 @@ describe('FreeeApiClient', () => {
         { id: 2067140, name: 'Test Company 1' },
         { id: 2067141, name: 'Test Company 2' },
       ];
-      mockFreeeClient.getCompanies.mockResolvedValue({ companies: mockCompanies });
+      const mockResponse = {
+        data: { companies: mockCompanies },
+        status: 200,
+        headers: {},
+      };
+      mockFreeeClient.get.mockResolvedValue(mockResponse);
 
       // Act
       const result = await freeeApiClient.getCompanies();
 
       // Assert
       expect(result).toEqual({ companies: mockCompanies });
-      expect(mockFreeeClient.getCompanies).toHaveBeenCalled();
+      expect(mockFreeeClient.get).toHaveBeenCalledWith('/api/1/companies', { params: undefined });
     });
   });
 
@@ -282,17 +287,24 @@ describe('FreeeApiClient', () => {
         { id: 2, issue_date: '2024-01-20', amount: 2000 },
       ];
       const mockResponse = {
-        deals: mockDeals,
-        meta: { total_count: 2 },
+        data: {
+          deals: mockDeals,
+          meta: { total_count: 2 },
+        },
+        status: 200,
+        headers: {},
       };
-      mockFreeeClient.getDeals.mockResolvedValue(mockResponse);
+      mockFreeeClient.get.mockResolvedValue(mockResponse);
 
       // Act
       const result = await freeeApiClient.getDeals(params);
 
       // Assert
-      expect(result).toEqual(mockResponse);
-      expect(mockFreeeClient.getDeals).toHaveBeenCalledWith(params);
+      expect(result).toEqual(mockResponse.data);
+      expect(mockFreeeClient.get).toHaveBeenCalledWith(
+        expect.stringContaining('/api/1/deals?company_id=2067140'),
+        { params: undefined }
+      );
     });
   });
 
@@ -303,8 +315,8 @@ describe('FreeeApiClient', () => {
       const requestId2 = (freeeApiClient as any).generateRequestId();
 
       // Assert
-      expect(requestId1).toMatch(/^req_[a-f0-9]{8}$/);
-      expect(requestId2).toMatch(/^req_[a-f0-9]{8}$/);
+      expect(requestId1).toMatch(/^req_\d+_[a-z0-9]{9}$/);
+      expect(requestId2).toMatch(/^req_\d+_[a-z0-9]{9}$/);
       expect(requestId1).not.toBe(requestId2);
     });
   });

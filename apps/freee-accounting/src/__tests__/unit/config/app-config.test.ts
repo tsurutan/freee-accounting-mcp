@@ -40,7 +40,7 @@ describe('AppConfig', () => {
   describe('constructor', () => {
     it('デフォルト値で初期化される', () => {
       // Assert
-      expect(appConfig.companyId).toBe(2067140);
+      expect(appConfig.companyId).toBe(123456);
       expect(appConfig.baseUrl).toBe('https://api.test.freee.co.jp');
       expect(appConfig.defaultDealsPeriodDays).toBe(30);
       expect(appConfig.defaultDealsLimit).toBe(100);
@@ -71,7 +71,7 @@ describe('AppConfig', () => {
   describe('getters', () => {
     it('companyIdを正しく取得する', () => {
       // Act & Assert
-      expect(appConfig.companyId).toBe(2067140);
+      expect(appConfig.companyId).toBe(123456);
     });
 
     it('baseUrlを正しく取得する', () => {
@@ -116,7 +116,7 @@ describe('AppConfig', () => {
 
       // Assert
       expect(allConfig).toEqual({
-        companyId: 2067140,
+        companyId: 123456,
         baseUrl: 'https://api.test.freee.co.jp',
         defaultDealsPeriodDays: 30,
         defaultDealsLimit: 100,
@@ -252,7 +252,7 @@ describe('AppConfig', () => {
       config.retry.maxRetries = 999;
 
       // Assert
-      expect(appConfig.companyId).toBe(2067140);
+      expect(appConfig.companyId).toBe(123456);
       expect(appConfig.retryConfig.maxRetries).toBe(3);
     });
   });

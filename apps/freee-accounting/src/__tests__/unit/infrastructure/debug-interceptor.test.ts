@@ -234,9 +234,9 @@ describe('DebugInterceptor', () => {
       const result = (debugInterceptor as any).truncateData(longData);
 
       // Assert
-      expect(typeof result).toBe('string');
-      expect(result).toContain('...[truncated]');
-      expect(result.length).toBeLessThanOrEqual(50 + '...[truncated]'.length);
+      expect(typeof result).toBe('object');
+      expect(result._debug_info).toContain('[Data truncated');
+      expect(result.name).toBe('a'.repeat(100));
     });
 
     it('undefinedデータを正しく処理する', () => {

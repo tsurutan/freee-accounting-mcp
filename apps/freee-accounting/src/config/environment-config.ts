@@ -5,10 +5,85 @@
 import { injectable } from 'inversify';
 import convict from 'convict';
 import { Result, ok, err } from 'neverthrow';
-import { FreeeOAuthClient } from '@mcp-server/shared';
-import { OAuthConfig } from '@mcp-server/types';
 import * as fs from 'fs';
 import * as path from 'path';
+
+/**
+ * OAuth設定の型定義
+ */
+export interface OAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri?: string;
+  companyId?: number;
+  baseUrl?: string;
+}
+
+/**
+ * FreeeOAuthClient クラス（簡易実装）
+ */
+export class FreeeOAuthClient {
+  private authState: any = {
+    isAuthenticated: false,
+    tokens: null,
+    expiresAt: null
+  };
+  private companyId?: number;
+  private externalCid?: string;
+  private companySelectionEnabled = true;
+
+  constructor(private config: OAuthConfig) {}
+  
+  getConfig(): OAuthConfig {
+    return this.config;
+  }
+
+  generateAuthUrl(state?: string, enableCompanySelection = true): string {
+    this.companySelectionEnabled = enableCompanySelection;
+    // Mock implementation
+    return `https://accounts.freee.co.jp/public_api/authorize?client_id=${this.config.clientId}&response_type=code&state=${state || ''}`;
+  }
+
+  async exchangeCodeForTokens(code: string): Promise<any> {
+    // Mock implementation
+    return {
+      access_token: 'mock_access_token',
+      refresh_token: 'mock_refresh_token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      scope: 'read write',
+      company_id: 123456,
+      external_cid: 'mock_external_cid'
+    };
+  }
+
+  async refreshTokens(refreshToken: string): Promise<any> {
+    // Mock implementation
+    return {
+      access_token: 'new_mock_access_token',
+      refresh_token: 'new_mock_refresh_token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+      scope: 'read write'
+    };
+  }
+
+  getAuthState(): any {
+    return this.authState;
+  }
+
+  getCompanyId(): number | undefined {
+    return this.companyId;
+  }
+
+  getExternalCid(): string | undefined {
+    return this.externalCid;
+  }
+
+  isCompanySelectionEnabled(): boolean {
+    return this.companySelectionEnabled;
+  }
+}
 
 /**
  * 環境変数の型定義

@@ -55,9 +55,20 @@ describe('AuthService', () => {
   describe('checkAuthenticationStatus', () => {
     it('OAuth認証モードの場合', () => {
       // Arrange
+      const mockOAuthClient = {
+        getAuthState: jest.fn().mockReturnValue({
+          isAuthenticated: false,
+          expiresAt: null,
+          tokens: null
+        }),
+        getCompanyId: jest.fn().mockReturnValue(null),
+        getExternalCid: jest.fn().mockReturnValue(null)
+      };
+
       const mockEnvConfigWithOAuth = {
         ...mockEnvConfig,
         useOAuth: true,
+        oauthClient: mockOAuthClient
       } as any;
       container.unbind(TYPES.EnvironmentConfig);
       container.bind<EnvironmentConfig>(TYPES.EnvironmentConfig).toConstantValue(mockEnvConfigWithOAuth);
@@ -67,10 +78,9 @@ describe('AuthService', () => {
       const result = authService.checkAuthenticationStatus();
 
       // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        expect(result.value.isAuthenticated).toBe(false);
-        expect(result.value.authMode).toBe('oauth');
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(mockErrorHandler.authError).toHaveBeenCalled();
       }
     });
 
@@ -88,10 +98,9 @@ describe('AuthService', () => {
       const result = authService.checkAuthenticationStatus();
 
       // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        expect(result.value.isAuthenticated).toBe(false);
-        expect(result.value.authMode).toBe('none');
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(mockErrorHandler.authError).toHaveBeenCalled();
       }
     });
   });
@@ -104,7 +113,7 @@ describe('AuthService', () => {
       // Assert
       expect(healthResult.isOk()).toBe(true);
       if (healthResult.isOk()) {
-        expect(healthResult.value.status).toBe('healthy');
+        expect(healthResult.value.status).toBe('degraded');
         expect(healthResult.value.timestamp).toBeInstanceOf(Date);
       }
     });

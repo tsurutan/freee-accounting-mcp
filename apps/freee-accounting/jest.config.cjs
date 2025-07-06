@@ -26,17 +26,14 @@ const config = {
       statements: 80,
     },
   },
-  moduleNameMapper: {
-    '^@mcp-server/(.*)$': '<rootDir>/../../packages/$1/dist',
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  },
   extensionsToTreatAsEsm: ['.ts'],
   transformIgnorePatterns: [
-    'node_modules/(?!(@modelcontextprotocol|@mcp-server)/)',
+    'node_modules/(?!@modelcontextprotocol)',
   ],
   moduleNameMapper: {
-    '^@mcp-server/shared$': '<rootDir>/../../packages/shared/src/index.ts',
-    '^@mcp-server/types$': '<rootDir>/../../packages/types/src/index.ts',
+    '^@modelcontextprotocol/sdk/server/index.js$': '<rootDir>/src/__tests__/__mocks__/mcp-sdk-server.js',
+    '^@modelcontextprotocol/sdk/server/stdio.js$': '<rootDir>/src/__tests__/__mocks__/mcp-sdk-stdio.js',
+    '^@modelcontextprotocol/sdk/types.js$': '<rootDir>/src/__tests__/__mocks__/mcp-sdk-types.js',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 };

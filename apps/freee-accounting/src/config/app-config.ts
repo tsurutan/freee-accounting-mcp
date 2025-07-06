@@ -105,7 +105,7 @@ export class AppConfig {
    * リトライ設定を取得
    */
   get retryConfig() {
-    return this.config.retry;
+    return { ...this.config.retry };
   }
 
   /**
@@ -119,7 +119,10 @@ export class AppConfig {
    * 全設定を取得
    */
   getAll(): AppConfigData {
-    return { ...this.config };
+    return {
+      ...this.config,
+      retry: { ...this.config.retry }
+    };
   }
 
   /**

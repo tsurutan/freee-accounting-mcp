@@ -50,13 +50,14 @@ export class ResponseBuilder {
           text: message,
         },
       ],
+      isError: false,
     };
   }
 
   /**
    * 成功レスポンスを生成（JSON データ付き）
    */
-  toolSuccessWithData(data: any, message?: string): MCPToolResponse {
+  toolSuccessWithData(data: any, message?: string): MCPToolResponse & { data: any } {
     const text = message 
       ? `${message}\n\n${JSON.stringify(data, null, 2)}`
       : JSON.stringify(data, null, 2);
@@ -68,6 +69,8 @@ export class ResponseBuilder {
           text,
         },
       ],
+      isError: false,
+      data,
     };
   }
 

@@ -210,7 +210,7 @@ export abstract class BaseToolHandler implements IToolHandler {
   /**
    * 成功結果を作成
    */
-  protected createSuccessResult(data?: any, message?: string): MCPToolResponse {
+  protected createSuccessResult(data?: any, message?: string): MCPToolResponse | (MCPToolResponse & { data: any }) {
     if (data) {
       return this.responseBuilder.toolSuccessWithData(data, message);
     } else {

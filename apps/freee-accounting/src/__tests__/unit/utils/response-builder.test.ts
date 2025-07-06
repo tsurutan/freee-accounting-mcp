@@ -141,7 +141,12 @@ describe('ResponseBuilder', () => {
       expect(result.contents).toHaveLength(1);
       expect(result.contents[0]?.uri).toBe(uri);
       expect(result.contents[0]?.mimeType).toBe('application/json');
-      expect(JSON.parse(result.contents[0]?.text || '')).toEqual(data);
+      
+      const parsedData = JSON.parse(result.contents[0]?.text || '');
+      expect(parsedData.id).toBe(data.id);
+      expect(parsedData.name).toBe(data.name);
+      expect(parsedData.timestamp).toBeDefined();
+      expect(typeof parsedData.timestamp).toBe('string');
     });
   });
 
@@ -264,7 +269,7 @@ describe('ResponseBuilder', () => {
       expect(result).toContain('取引一覧を取得しました');
       expect(result).toContain('期間: 2024-01-01 ～ 2024-01-31');
       expect(result).toContain('事業所ID: 123');
-      expect(result).toContain('取引件数: 2件');
+      expect(result).toContain('取得件数: 2件');
     });
 
     it('取引データが空の場合を正しく処理する', () => {

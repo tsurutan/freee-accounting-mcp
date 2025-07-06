@@ -10,7 +10,16 @@ import { Logger } from '../infrastructure/logger.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { IAuthService, ServiceHealthStatus } from '../interfaces/service.js';
 import { OAuthTokenResponse, AuthContext } from '../types/api.js';
-import { OAuthTokens } from '@mcp-server/types';
+/**
+ * OAuth トークンの型定義
+ */
+export interface OAuthTokens {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: Date;
+  tokenType?: string;
+  scope?: string;
+}
 
 /**
  * 認証状態の型定義

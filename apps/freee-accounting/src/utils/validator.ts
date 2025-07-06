@@ -211,7 +211,29 @@ export class Validator {
     }
 
     // Split the date string to validate components
-    const [year, month, day] = dateString.split('-').map(Number);
+    const parts = dateString.split('-').map(Number);
+    if (parts.length !== 3) {
+      return err({
+        type: 'VALIDATION_ERROR',
+        message: '日付は YYYY-MM-DD 形式で入力してください',
+        field: 'date',
+        retryable: false,
+      });
+    }
+    
+    const year = parts[0]!;
+    const month = parts[1]!;
+    const day = parts[2]!;
+    
+    // Check if all parts are valid numbers
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      return err({
+        type: 'VALIDATION_ERROR',
+        message: '有効な数値で日付を入力してください',
+        field: 'date',
+        retryable: false,
+      });
+    }
     
     // Check if the date components are valid
     if (month < 1 || month > 12) {

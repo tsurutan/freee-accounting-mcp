@@ -8,13 +8,8 @@ import { TYPES } from '../container/types.js';
 import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
+import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { MCPToolResponse } from '../utils/response-builder.js';
-
-// 一時的な型定義
-interface FreeeClient {
-  getCompanies(): Promise<{ companies: any[] }>;
-  get(url: string): Promise<{ data: any }>;
-}
 
 /**
  * 事業所関連ツールハンドラー
@@ -28,7 +23,7 @@ export class CompanyToolHandler extends BaseToolHandler {
     @inject(TYPES.Logger) logger: any,
     @inject(TYPES.Validator) validator: any,
     @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
-    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeClient
+    @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeApiClient
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
   }
@@ -214,7 +209,10 @@ export class CompanyToolHandler extends BaseToolHandler {
 
       const companyId = this.appConfig.companyId;
       const response = await this.freeeClient.get(`/api/1/companies/${companyId}`);
-      const company = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const company = response.value.data;
 
       this.logger.info('Current company retrieved successfully', {
         companyId,
@@ -247,7 +245,10 @@ export class CompanyToolHandler extends BaseToolHandler {
       }
 
       const response = await this.freeeClient.get(url);
-      const accountItems = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const accountItems = response.value.data;
 
       this.logger.info('Account items retrieved successfully', {
         count: accountItems?.account_items?.length || 0
@@ -274,7 +275,10 @@ export class CompanyToolHandler extends BaseToolHandler {
       const response = await this.freeeClient.get(
         `/api/1/partners?company_id=${companyId}&limit=${limit}&offset=${offset}`
       );
-      const partners = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const partners = response.value.data;
 
       this.logger.info('Partners retrieved successfully', {
         count: partners?.partners?.length || 0,
@@ -298,7 +302,10 @@ export class CompanyToolHandler extends BaseToolHandler {
 
       const companyId = this.appConfig.companyId;
       const response = await this.freeeClient.get(`/api/1/sections?company_id=${companyId}`);
-      const sections = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const sections = response.value.data;
 
       this.logger.info('Sections retrieved successfully', {
         count: sections?.sections?.length || 0
@@ -325,7 +332,10 @@ export class CompanyToolHandler extends BaseToolHandler {
       const response = await this.freeeClient.get(
         `/api/1/items?company_id=${companyId}&limit=${limit}&offset=${offset}`
       );
-      const items = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const items = response.value.data;
 
       this.logger.info('Items retrieved successfully', {
         count: items?.items?.length || 0,
@@ -349,7 +359,10 @@ export class CompanyToolHandler extends BaseToolHandler {
 
       const companyId = this.appConfig.companyId;
       const response = await this.freeeClient.get(`/api/1/tags?company_id=${companyId}`);
-      const tags = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const tags = response.value.data;
 
       this.logger.info('Tags retrieved successfully', {
         count: tags?.tags?.length || 0

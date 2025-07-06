@@ -19,6 +19,32 @@ class MockResponseBuilder {
   formatDealsResponse(deals: any[], companyId: number, period: any) {
     return `取引一覧を取得しました。\n期間: ${period.startDate} ～ ${period.endDate}\n取引数: ${deals.length}件`;
   }
+
+  toolSuccess(message: string) {
+    return {
+      content: [{ type: 'text' as const, text: message }],
+      isError: false
+    };
+  }
+
+  toolSuccessWithData(data: any, message?: string) {
+    const text = message 
+      ? `${message}\n\n${JSON.stringify(data, null, 2)}`
+      : JSON.stringify(data, null, 2);
+
+    return {
+      content: [{ type: 'text' as const, text }],
+      data,
+      isError: false
+    };
+  }
+
+  toolError(error: any) {
+    return {
+      content: [{ type: 'text' as const, text: `エラー: ${error.message}` }],
+      isError: true
+    };
+  }
 }
 
 class MockErrorHandler {
@@ -53,6 +79,18 @@ class MockLogger {
 
 class MockValidator {
   async validateDto(dto: any) {
+    // Simulate basic validation for DTOs
+    if (dto.constructor.name === 'CreateDealDto') {
+      if (!dto.issue_date) {
+        return err({ type: 'VALIDATION_ERROR', message: 'issue_date は必須です', retryable: false });
+      }
+      if (!dto.type) {
+        return err({ type: 'VALIDATION_ERROR', message: 'type は必須です', retryable: false });
+      }
+      if (!dto.details || dto.details.length === 0) {
+        return err({ type: 'VALIDATION_ERROR', message: 'details は必須です', retryable: false });
+      }
+    }
     return ok(dto);
   }
 
@@ -76,6 +114,13 @@ class MockValidator {
 
   validateDealBalance(details: any[]) {
     return ok(details);
+  }
+
+  validateRequired(value: any, fieldName: string) {
+    if (value === undefined || value === null || value === '') {
+      return err({ type: 'VALIDATION_ERROR', message: `${fieldName} は必須です`, field: fieldName, retryable: false });
+    }
+    return ok(value);
   }
 
   validateRequiredFields(obj: any, fields: string[]) {
@@ -197,6 +242,42 @@ class MockFreeeClient {
       throw new Error('Deal not found');
     }
     throw new Error('Invalid URL');
+  }
+
+  async getDealDetails(dealId: number, companyId: number) {
+    const deal = this.mockDeals.find(d => d.id === dealId);
+    if (deal) {
+      return deal;
+    }
+    throw new Error('Deal not found');
+  }
+
+  async createDeal(dealData: any) {
+    const newDeal = {
+      id: this.mockDeals.length + 1,
+      ...dealData,
+      created_at: new Date().toISOString()
+    };
+    this.mockDeals.push(newDeal);
+    return newDeal;
+  }
+
+  async updateDeal(dealId: number, dealData: any) {
+    const dealIndex = this.mockDeals.findIndex(d => d.id === dealId);
+    if (dealIndex !== -1) {
+      this.mockDeals[dealIndex] = { ...this.mockDeals[dealIndex], ...dealData };
+      return this.mockDeals[dealIndex];
+    }
+    throw new Error('Deal not found');
+  }
+
+  async deleteDeal(dealId: number, companyId: number) {
+    const dealIndex = this.mockDeals.findIndex(d => d.id === dealId);
+    if (dealIndex !== -1) {
+      this.mockDeals.splice(dealIndex, 1);
+      return { message: 'Deal deleted' };
+    }
+    throw new Error('Deal not found');
   }
 }
 
@@ -420,7 +501,7 @@ describe('DealToolHandler', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.type).toBe('VALIDATION_ERROR');
-          expect(result.error.message).toContain('年が正しくありません');
+          expect(result.error.message).toContain('年は2000-2100の範囲で入力してください');
         }
       });
 
@@ -435,7 +516,7 @@ describe('DealToolHandler', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.type).toBe('VALIDATION_ERROR');
-          expect(result.error.message).toContain('月が正しくありません');
+          expect(result.error.message).toContain('月は1-12の範囲で入力してください');
         }
       });
     });

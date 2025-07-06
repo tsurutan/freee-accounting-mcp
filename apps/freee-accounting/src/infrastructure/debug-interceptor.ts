@@ -3,9 +3,13 @@
  */
 
 import { injectable, inject } from 'inversify';
-import { FreeeClient } from '@mcp-server/shared';
 import { Logger } from './logger.js';
 import { TYPES } from '../container/types.js';
+
+// Forward declaration for FreeeClient
+interface FreeeClient {
+  [key: string]: any;
+}
 
 /**
  * デバッグ設定
@@ -198,8 +202,8 @@ export class DebugInterceptor {
       masked.Authorization = masked.Authorization.replace(/Bearer .+/, 'Bearer ***');
     }
 
-    // その他の機密情報をマスク
-    const sensitiveKeys = ['authorization', 'cookie', 'x-api-key', 'x-auth-token'];
+    // その他の機密情報をマスク (Authorization は上で処理済みなので除外)
+    const sensitiveKeys = ['authorization', 'cookie', 'x-api-key', 'x-auth-token', 'Cookie', 'X-API-Key', 'X-Auth-Token'];
     for (const key of sensitiveKeys) {
       if (masked[key]) {
         masked[key] = '***';

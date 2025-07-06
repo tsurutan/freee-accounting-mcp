@@ -45,7 +45,7 @@ export class AuthToolHandler extends BaseToolHandler {
    * 指定されたツールをサポートするかチェック
    */
   supportsTool(name: string): boolean {
-    const supportedTools = ['get-auth-url', 'exchange-code', 'get-health'];
+    const supportedTools = ['generate-auth-url', 'exchange-auth-code', 'check-auth-status'];
     return supportedTools.includes(name);
   }
 

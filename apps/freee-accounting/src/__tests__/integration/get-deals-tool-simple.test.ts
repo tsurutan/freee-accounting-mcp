@@ -66,16 +66,16 @@ class SimpleErrorHandler {
 
 class SimpleLogger {
   info(message: string, context?: any) {
-    console.error(`[INFO] ${message}`, context);
+    // Silent during tests
   }
   error(message: string, context?: any, error?: any) {
-    console.error(`[ERROR] ${message}`, context, error);
+    // Silent during tests
   }
   warn(message: string, context?: any) {
-    console.error(`[WARN] ${message}`, context);
+    // Silent during tests
   }
   debug(message: string, context?: any) {
-    console.error(`[DEBUG] ${message}`, context);
+    // Silent during tests
   }
 }
 
@@ -206,25 +206,23 @@ describe('get-deals Tool Simple Integration Test', () => {
     it('should execute get-deals with default parameters', async () => {
       const result = await dealToolHandler.executeTool('get-deals', {});
 
-      // 直接レスポンスオブジェクトが返される
-      expect(result).toHaveProperty('content');
-      expect(result).toHaveProperty('data');
+      // Result オブジェクトが返される
+      expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const response = result.value;
+        expect(response).toHaveProperty('content');
+        expect(response).toHaveProperty('data');
         expect(response.content).toHaveLength(1);
         expect(response.content?.[0]?.type).toBe('text');
         expect(response.content?.[0]?.text).toContain('取引一覧を取得しました');
 
-        // データ構造の検証 - content[0].textからJSONを抽出
-        const textContent = response.content?.[0]?.text;
-        const lines = textContent?.split('\n\n') || [];
-        const jsonData = JSON.parse(lines[1] || '{}');
-        expect(jsonData).toHaveProperty('deals');
-        expect(jsonData).toHaveProperty('meta');
-        expect(jsonData).toHaveProperty('period');
-        expect(jsonData).toHaveProperty('company_id');
-        expect(Array.isArray(jsonData.deals)).toBe(true);
-        expect(jsonData.company_id).toBe(2067140);
+        // データ構造の検証 - response.dataを直接チェック
+        expect(response.data).toHaveProperty('deals');
+        expect(response.data).toHaveProperty('meta');
+        expect(response.data).toHaveProperty('period');
+        expect(response.data).toHaveProperty('company_id');
+        expect(Array.isArray((response.data as any).deals)).toBe(true);
+        expect((response.data as any).company_id).toBe(2067140);
       }
     }, 10000);
 
@@ -241,16 +239,13 @@ describe('get-deals Tool Simple Integration Test', () => {
         const response = result.value;
         expect(response).toHaveProperty('content');
 
-        // データ構造の検証 - content[0].textからJSONを抽出
-        const textContent = response.content?.[0]?.text;
-        const lines = textContent?.split('\n\n') || [];
-        const jsonData = JSON.parse(lines[1] || '{}');
-        expect(jsonData).toHaveProperty('deals');
-        expect(jsonData).toHaveProperty('meta');
-        expect(jsonData).toHaveProperty('period');
-        expect(Array.isArray(jsonData.deals)).toBe(true);
-        expect(jsonData.period.startDate).toBe('2024-01-01');
-        expect(jsonData.period.endDate).toBe('2024-01-31');
+        // データ構造の検証 - response.dataを直接チェック
+        expect(response.data).toHaveProperty('deals');
+        expect(response.data).toHaveProperty('meta');
+        expect(response.data).toHaveProperty('period');
+        expect(Array.isArray((response.data as any).deals)).toBe(true);
+        expect((response.data as any).period.startDate).toBe('2024-01-01');
+        expect((response.data as any).period.endDate).toBe('2024-01-31');
       }
     }, 10000);
 
@@ -279,13 +274,13 @@ describe('get-deals Tool Simple Integration Test', () => {
 
       const result = await dealToolHandler.executeTool('get-deals', args);
 
-      // レスポンスが返されることを確認
-      // （バリデーションエラーまたは成功のいずれかを期待）
-      expect(result).toHaveProperty('content');
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const response = result.value;
-        expect(Array.isArray(response.content)).toBe(true);
+      // バリデーションエラーが発生することを確認
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        const error = result.error;
+        expect(error).toHaveProperty('type');
+        expect(error.type).toBe('VALIDATION_ERROR');
+        expect(error.message).toContain('日付形式が正しくありません');
       }
     });
   });

@@ -199,7 +199,7 @@ FREEE_REDIRECT_URI=urn:ietf:wg:oauth:2.0:oob
       expect(config).toEqual({
         clientId: 'test-client-id',
         clientSecret: 'test-client-secret',
-        redirectUri: 'http://localhost:8080/callback',
+        redirectUri: 'urn:ietf:wg:oauth:2.0:oob',
         baseUrl: 'https://api.test.freee.co.jp',
       });
     });

@@ -30,10 +30,14 @@ describe('AuthToolHandler', () => {
       checkAuthenticationStatus: jest.fn(),
       generateAuthUrl: jest.fn(),
       exchangeCodeForToken: jest.fn(),
+      exchangeAuthCode: jest.fn(),
+      getAuthDetails: jest.fn(),
+      getAuthSummary: jest.fn(),
     } as any;
 
     mockResponseBuilder = {
       toolSuccess: jest.fn(),
+      toolSuccessWithData: jest.fn(),
       toolError: jest.fn(),
       authError: jest.fn(),
     } as any;
@@ -41,6 +45,11 @@ describe('AuthToolHandler', () => {
     mockErrorHandler = {
       authError: jest.fn(),
       validationError: jest.fn(),
+      fromException: jest.fn().mockReturnValue({
+        type: 'INTERNAL_ERROR',
+        message: 'Internal error',
+        retryable: false
+      }),
     } as any;
 
     mockLogger = {
@@ -51,7 +60,12 @@ describe('AuthToolHandler', () => {
     } as any;
 
     mockValidator = {
-      validateRequired: jest.fn(),
+      validateRequired: jest.fn().mockImplementation((value, fieldName) => {
+        if (value === undefined || value === null || value === '') {
+          return err({ type: 'VALIDATION_ERROR', message: `${fieldName} は必須です`, field: fieldName, retryable: false });
+        }
+        return ok(value);
+      }),
     } as any;
 
     // DIコンテナにモックを登録
@@ -60,6 +74,20 @@ describe('AuthToolHandler', () => {
     container.bind(TYPES.ErrorHandler).toConstantValue(mockErrorHandler);
     container.bind(TYPES.Logger).toConstantValue(mockLogger);
     container.bind(TYPES.Validator).toConstantValue(mockValidator);
+    
+    // EnvironmentConfig mock
+    const mockEnvironmentConfig = {
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+      companyId: 123456,
+      baseUrl: 'https://api.freee.co.jp',
+      oauthConfig: {
+        redirectUri: 'urn:ietf:wg:oauth:2.0:oob'
+      }
+    };
+    container.bind(TYPES.EnvironmentConfig).toConstantValue(mockEnvironmentConfig);
+    
     container.bind(AuthToolHandler).toSelf();
 
     authToolHandler = container.get(AuthToolHandler);
@@ -102,9 +130,9 @@ describe('AuthToolHandler', () => {
           'urn:ietf:wg:oauth:2.0:oob',
           'test-state'
         );
-        expect(mockResponseBuilder.toolSuccess).toHaveBeenCalledWith(
-          { authUrl },
-          expect.stringContaining('OAuth認証URLを生成しました')
+        expect(mockResponseBuilder.toolSuccessWithData).toHaveBeenCalledWith(
+          { authUrl: authUrl, enableCompanySelection: true },
+          expect.stringContaining('認証URL:')
         );
       });
 
@@ -131,18 +159,16 @@ describe('AuthToolHandler', () => {
         // Arrange
         const args = { code: 'auth-code-123' };
         const tokenResponse = {
-          access_token: 'access-token-123',
-          refresh_token: 'refresh-token-123',
-          token_type: 'Bearer',
-          expires_in: 3600,
+          accessToken: 'access-token-123',
+          refreshToken: 'refresh-token-123',
+          tokenType: 'Bearer',
+          expiresAt: new Date(Date.now() + 3600 * 1000),
           scope: 'default',
-          created_at: Math.floor(Date.now() / 1000),
         };
-        const successResponse = { content: [{ type: 'text' as const, text: 'Success' }], isError: false };
+        const successResponse = { content: [{ type: 'text' as const, text: 'Success' }], isError: false, data: tokenResponse };
 
-        mockValidator.validateRequired.mockReturnValue(ok('auth-code-123'));
-        mockAuthService.exchangeCodeForToken.mockResolvedValue(ok(tokenResponse));
-        mockResponseBuilder.toolSuccess.mockReturnValue(successResponse);
+        mockAuthService.exchangeAuthCode.mockResolvedValue(ok(tokenResponse));
+        mockResponseBuilder.toolSuccessWithData.mockReturnValue(successResponse);
 
         // Act
         const result = await authToolHandler.executeTool('exchange-auth-code', args);
@@ -150,13 +176,10 @@ describe('AuthToolHandler', () => {
         // Assert
         expect(result.isOk()).toBe(true);
         expect(mockValidator.validateRequired).toHaveBeenCalledWith('auth-code-123', 'code');
-        expect(mockAuthService.exchangeCodeForToken).toHaveBeenCalledWith(
-          'auth-code-123',
-          'urn:ietf:wg:oauth:2.0:oob'
-        );
-        expect(mockResponseBuilder.toolSuccess).toHaveBeenCalledWith(
+        expect(mockAuthService.exchangeAuthCode).toHaveBeenCalledWith('auth-code-123');
+        expect(mockResponseBuilder.toolSuccessWithData).toHaveBeenCalledWith(
           tokenResponse,
-          expect.stringContaining('アクセストークンを取得しました')
+          expect.stringContaining('認証が完了しました')
         );
       });
 
@@ -184,8 +207,7 @@ describe('AuthToolHandler', () => {
         const error = { type: 'AUTH_ERROR', message: 'Invalid authorization code', retryable: false };
         const errorResponse = { content: [{ type: 'text' as const, text: 'Error' }], isError: true };
 
-        mockValidator.validateRequired.mockReturnValue(ok('invalid-code'));
-        mockAuthService.exchangeCodeForToken.mockResolvedValue(err(error as any));
+        mockAuthService.exchangeAuthCode.mockResolvedValue(err(error as any));
         mockResponseBuilder.toolError.mockReturnValue(errorResponse);
 
         // Act
@@ -205,37 +227,52 @@ describe('AuthToolHandler', () => {
           authMode: 'oauth' as const,
           companyId: '2067140',
         };
-        const successResponse = { content: [{ type: 'text' as const, text: 'Success' }], isError: false };
+        const successResponse = { content: [{ type: 'text' as const, text: 'Success' }], isError: false, data: authState };
 
-        mockAuthService.checkAuthenticationStatus.mockReturnValue(ok(authState));
-        mockResponseBuilder.toolSuccess.mockReturnValue(successResponse);
+        mockAuthService.getAuthDetails.mockReturnValue(ok(authState));
+        mockAuthService.getAuthSummary.mockReturnValue('認証済み (OAuth)');
+        mockResponseBuilder.toolSuccessWithData.mockReturnValue(successResponse);
 
         // Act
         const result = await authToolHandler.executeTool('check-auth-status', {});
 
         // Assert
         expect(result.isOk()).toBe(true);
-        expect(mockAuthService.checkAuthenticationStatus).toHaveBeenCalled();
-        expect(mockResponseBuilder.toolSuccess).toHaveBeenCalledWith(
+        expect(mockAuthService.getAuthDetails).toHaveBeenCalled();
+        expect(mockAuthService.getAuthSummary).toHaveBeenCalled();
+        expect(mockResponseBuilder.toolSuccessWithData).toHaveBeenCalledWith(
           authState,
-          expect.stringContaining('認証状態を確認しました')
+          '認証済み (OAuth)'
         );
       });
 
       it('認証状態確認が失敗する場合', async () => {
         // Arrange
         const error = { type: 'AUTH_ERROR', message: 'Authentication failed', retryable: false };
-        const errorResponse = { content: [{ type: 'text' as const, text: 'Error' }], isError: true };
+        const errorData = {
+          isAuthenticated: false,
+          error: 'Authentication failed',
+          authMode: 'none'
+        };
+        const errorResponse = { content: [{ type: 'text' as const, text: 'Error' }], isError: true, data: errorData };
 
-        mockAuthService.checkAuthenticationStatus.mockReturnValue(err(error as any));
-        mockResponseBuilder.toolError.mockReturnValue(errorResponse);
+        mockAuthService.getAuthDetails.mockReturnValue(err(error as any));
+        mockAuthService.getAuthSummary.mockReturnValue('認証エラー');
+        mockResponseBuilder.toolSuccessWithData.mockReturnValue(errorResponse);
 
         // Act
         const result = await authToolHandler.executeTool('check-auth-status', {});
 
         // Assert
         expect(result.isOk()).toBe(true);
-        expect(mockResponseBuilder.toolError).toHaveBeenCalledWith(error);
+        expect(mockResponseBuilder.toolSuccessWithData).toHaveBeenCalledWith(
+          {
+            isAuthenticated: false,
+            error: 'Authentication failed',
+            authMode: 'none'
+          },
+          '認証エラー'
+        );
       });
     });
 
@@ -266,9 +303,9 @@ describe('AuthToolHandler', () => {
       expect((authToolHandler as any).requiresAuthentication('check-auth-status')).toBe(false);
     });
 
-    it('その他のツールは認証必要と判定する', () => {
+    it('その他のツールは認証不要と判定する', () => {
       // Act & Assert
-      expect((authToolHandler as any).requiresAuthentication('other-tool')).toBe(true);
+      expect((authToolHandler as any).requiresAuthentication('other-tool')).toBe(false);
     });
   });
 });
