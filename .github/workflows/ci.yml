@@ -38,13 +38,12 @@ jobs:
       - name: Run tests
         run: npm test
         
-      - name: Run test coverage
-        working-directory: ./apps/freee-accounting
-        run: npm run test:coverage
-        
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./apps/freee-accounting/coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+#       - name: Run test coverage
+#         working-directory: ./apps/freee-accounting
+#         run: npm run test:coverage
+#      - name: Upload coverage to Codecov
+#        uses: codecov/codecov-action@v3
+#        with:
+#          file: ./apps/freee-accounting/coverage/lcov.info
+#          flags: unittests
+#          name: codecov-umbrella
