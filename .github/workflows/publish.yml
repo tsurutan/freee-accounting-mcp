@@ -33,6 +33,8 @@ jobs:
         
       - name: Publish to NPM
         working-directory: ./apps/freee-accounting
-        run: npm publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > .npmrc
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
