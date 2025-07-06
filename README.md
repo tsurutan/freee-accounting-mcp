@@ -145,28 +145,34 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 
 ### 🚀 オンラインインストール（推奨）
 
-**NPMからのインストール:**
+**npxを使用した直接実行（推奨）:**
 
 ```bash
-# グローバルインストール
+# Claude Codeで使用（インストール不要、常に最新版）
+claude mcp add freee-accounting \
+  -e FREEE_CLIENT_ID=your_client_id \
+  -e FREEE_CLIENT_SECRET=your_client_secret \
+  -e FREEE_COMPANY_ID=123456 \
+  -- npx @tsurutan/freee-accounting-mcp
+```
+
+**グローバルインストール版:**
+
+```bash
+# 事前にグローバルインストール
 npm install -g @tsurutan/freee-accounting-mcp
 
 # Claude Codeで使用
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -- npx @tsurutan/freee-accounting-mcp
+  -e FREEE_COMPANY_ID=123456 \
+  -- freee-accounting-mcp
 ```
 
-**npxを使用した直接実行:**
-
-```bash
-# Claude Codeで使用（インストール不要）
-claude mcp add freee-accounting \
-  -e FREEE_CLIENT_ID=your_client_id \
-  -e FREEE_CLIENT_SECRET=your_client_secret \
-  -- npx @tsurutan/freee-accounting-mcp
-```
+> **💡 npx vs グローバルインストール**
+> - **npx（推奨）**: インストール不要、常に最新版を使用、ディスク容量節約
+> - **グローバルインストール**: 実行が高速、オフライン環境での使用可能
 
 ### 🔧 ローカル開発版のインストール
 
@@ -187,6 +193,7 @@ npm run build
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
+  -e FREEE_COMPANY_ID=123456 \
   -- node ./apps/freee-accounting/dist/index.js
 ```
 
