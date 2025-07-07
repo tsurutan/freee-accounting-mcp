@@ -1,9 +1,9 @@
 /**
- * 改善されたログシステム（Winston使用）
+ * MCP Framework Logger implementation
  */
 
 import { injectable } from 'inversify';
-import winston from 'winston';
+import { logger } from 'mcp-framework';
 
 /**
  * ログレベルの定義
@@ -45,11 +45,10 @@ export interface LoggerConfig {
 }
 
 /**
- * 改善されたLoggerクラス
+ * MCP Framework Logger wrapper
  */
 @injectable()
 export class Logger {
-  private readonly winston: winston.Logger;
   private logs: LogEntry[] = [];
   private readonly maxLogs = 1000;
   private readonly config: LoggerConfig;
@@ -64,82 +63,6 @@ export class Logger {
       maxSize: process.env.LOG_MAX_SIZE || '10m',
       enableMCPInspector: process.env.MCP_INSPECTOR === 'true',
     };
-
-    this.winston = this.createWinstonLogger();
-  }
-
-  /**
-   * Winstonロガーを作成
-   */
-  private createWinstonLogger(): winston.Logger {
-    const transports: winston.transport[] = [];
-
-    // コンソール出力（MCP Inspector使用時は無効化）
-    if (this.config.enableConsole && !this.config.enableMCPInspector) {
-      transports.push(
-        new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.timestamp(),
-            winston.format.printf(({ timestamp, level, message, ...meta }) => {
-              const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-              return `${timestamp} [${level}]: ${message} ${metaStr}`;
-            })
-          ),
-        })
-      );
-    }
-
-    // ファイル出力
-    if (this.config.enableFile) {
-      transports.push(
-        new winston.transports.File({
-          filename: this.config.filename,
-          maxFiles: this.config.maxFiles,
-          maxsize: this.parseSize(this.config.maxSize || '10m'),
-          tailable: true,
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.json()
-          ),
-        })
-      );
-    }
-
-    return winston.createLogger({
-      level: this.config.level,
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-      ),
-      transports,
-      // エラー時の例外処理
-      exceptionHandlers: this.config.enableFile ? [
-        new winston.transports.File({ filename: 'exceptions.log' })
-      ] : [],
-      rejectionHandlers: this.config.enableFile ? [
-        new winston.transports.File({ filename: 'rejections.log' })
-      ] : [],
-    });
-  }
-
-  /**
-   * サイズ文字列をバイト数に変換
-   */
-  private parseSize(sizeStr: string): number {
-    const match = sizeStr.match(/^(\d+)([kmg]?)$/i);
-    if (!match) return 10 * 1024 * 1024; // デフォルト10MB
-
-    const size = parseInt(match[1]!);
-    const unit = match[2]?.toLowerCase() || '';
-
-    switch (unit) {
-      case 'k': return size * 1024;
-      case 'm': return size * 1024 * 1024;
-      case 'g': return size * 1024 * 1024 * 1024;
-      default: return size;
-    }
   }
 
   /**
@@ -166,7 +89,10 @@ export class Logger {
       error,
     };
 
-    this.winston.error(message, { ...context, error: error?.stack });
+    const logMessage = context || error 
+      ? `${message} ${JSON.stringify({ ...context, error: error?.stack })}`
+      : message;
+    logger.error(logMessage);
     this.saveLogEntry(entry);
   }
 
@@ -181,7 +107,10 @@ export class Logger {
       context,
     };
 
-    this.winston.warn(message, context);
+    const logMessage = context 
+      ? `${message} ${JSON.stringify(context)}`
+      : message;
+    logger.warn(logMessage);
     this.saveLogEntry(entry);
   }
 
@@ -196,7 +125,10 @@ export class Logger {
       context,
     };
 
-    this.winston.info(message, context);
+    const logMessage = context 
+      ? `${message} ${JSON.stringify(context)}`
+      : message;
+    logger.info(logMessage);
     this.saveLogEntry(entry);
   }
 
@@ -211,7 +143,10 @@ export class Logger {
       context,
     };
 
-    this.winston.debug(message, context);
+    const logMessage = context 
+      ? `${message} ${JSON.stringify(context)}`
+      : message;
+    logger.debug(logMessage);
     this.saveLogEntry(entry);
   }
 
@@ -233,11 +168,30 @@ export class Logger {
       duration,
     };
 
-    this.winston.log(level, entry.message, { 
+    const logMessage = `${entry.message} (${duration}ms)`;
+    const logContext = { 
       ...context, 
       operation, 
       duration: `${duration}ms` 
-    });
+    };
+
+    const finalMessage = `${logMessage} ${JSON.stringify(logContext)}`;
+    
+    switch (level) {
+      case LogLevel.ERROR:
+        logger.error(finalMessage);
+        break;
+      case LogLevel.WARN:
+        logger.warn(finalMessage);
+        break;
+      case LogLevel.INFO:
+        logger.info(finalMessage);
+        break;
+      case LogLevel.DEBUG:
+        logger.debug(finalMessage);
+        break;
+    }
+    
     this.saveLogEntry(entry);
   }
 
@@ -267,7 +221,14 @@ export class Logger {
       duration,
     };
 
-    this.winston.log(level, entry.message, entry.context);
+    const logMessage = `${entry.message} ${JSON.stringify(entry.context)}`;
+    
+    if (level === LogLevel.ERROR) {
+      logger.error(logMessage);
+    } else {
+      logger.info(logMessage);
+    }
+    
     this.saveLogEntry(entry);
   }
 
@@ -284,7 +245,8 @@ export class Logger {
       operation: 'authentication',
     };
 
-    this.winston.info(entry.message, { ...context, userId });
+    const logMessage = `${entry.message} ${JSON.stringify({ ...context, userId })}`;
+    logger.info(logMessage);
     this.saveLogEntry(entry);
   }
 
@@ -327,7 +289,6 @@ export class Logger {
    */
   setLogLevel(level: LogLevel): void {
     this.config.level = level;
-    this.winston.level = level;
   }
 
   /**

@@ -5,6 +5,7 @@
 import * as crypto from 'crypto';
 import * as os from 'os';
 import * as path from 'path';
+import { logger } from './logger.js';
 
 export interface EncryptionConfig {
   algorithm?: string;
@@ -49,8 +50,11 @@ export class TokenEncryption {
       let encrypted = cipher.update(data, 'utf8', 'hex');
       encrypted += cipher.final('hex');
 
-      // IVと暗号化データを結合
-      return iv.toString('hex') + ':' + encrypted;
+      // GCMの場合、認証タグを取得
+      const authTag = (cipher as any).getAuthTag();
+
+      // IV:認証タグ:暗号化データの形式で保存
+      return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
     } catch (error) {
       throw new Error(`Encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -59,27 +63,61 @@ export class TokenEncryption {
   decrypt(encryptedData: string): string {
     try {
       const parts = encryptedData.split(':');
-      if (parts.length !== 2) {
+      
+      // 新しい形式（IV:認証タグ:暗号化データ）の場合
+      if (parts.length === 3) {
+        const iv = Buffer.from(parts[0] || '', 'hex');
+        const authTag = Buffer.from(parts[1] || '', 'hex');
+        const encrypted = parts[2] || '';
+
+        const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
+        (decipher as any).setAuthTag(authTag);
+
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+
+        return decrypted;
+      }
+      // 古い形式（IV:暗号化データ）の場合はレガシー復号化を試行
+      else if (parts.length === 2) {
+        return this.decryptLegacy(encryptedData);
+      } else {
         throw new Error('Invalid encrypted data format');
+      }
+    } catch (error) {
+      throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * レガシー暗号化データ（AES-256-CBC）の復号化
+   */
+  private decryptLegacy(encryptedData: string): string {
+    try {
+      const parts = encryptedData.split(':');
+      if (parts.length !== 2) {
+        throw new Error('Invalid legacy encrypted data format');
       }
 
       const iv = Buffer.from(parts[0] || '', 'hex');
       const encrypted = parts[1] || '';
 
-      const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
+      // CBCモードで復号化
+      const decipher = crypto.createDecipheriv('aes-256-cbc', this.key, iv);
 
       let decrypted = decipher.update(encrypted, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
 
       return decrypted;
     } catch (error) {
-      throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Legacy decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   isEncrypted(data: string): boolean {
-    // 暗号化されたデータの形式をチェック
-    return data.includes(':') && data.split(':').length === 2;
+    // 暗号化されたデータの形式をチェック（新旧両形式に対応）
+    const parts = data.split(':');
+    return data.includes(':') && (parts.length === 2 || parts.length === 3);
   }
 }
 
@@ -221,9 +259,9 @@ export class SecurityAuditor {
       this.logs = this.logs.slice(-this.MAX_LOGS);
     }
 
-    // 重要度が高い場合はコンソールにも出力
+    // 重要度が高い場合はログ出力
     if (severity === 'high' || severity === 'critical') {
-      console.warn(`[SECURITY ${severity.toUpperCase()}] ${event}`, details);
+      logger.warn(`[SECURITY ${severity.toUpperCase()}] ${event} ${JSON.stringify(details)}`);
     }
   }
 

@@ -1,6 +1,8 @@
 /**
- * ログ機能
+ * MCP Framework Logger for shared package
  */
+
+import { logger as mcpLogger } from 'mcp-framework';
 
 export enum LogLevel {
   DEBUG = 0,
@@ -72,27 +74,29 @@ export class Logger {
       this.logs = this.logs.slice(-this.maxLogs);
     }
 
-    // コンソールにも出力
-    this.outputToConsole(logEntry);
+    // MCP Framework logger に出力
+    this.outputToMCPLogger(logEntry);
   }
 
-  private outputToConsole(logEntry: LogEntry): void {
-    const { timestamp, level, message, context, error } = logEntry;
-    const levelName = LogLevel[level];
-    const prefix = `[${timestamp}] [${levelName}]`;
-
-    switch (level) {
+  private outputToMCPLogger(logEntry: LogEntry): void {
+    const { message, context, error } = logEntry;
+    
+    const logMessage = context || error 
+      ? `${message} ${JSON.stringify({ ...context, error: error?.stack })}`
+      : message;
+    
+    switch (logEntry.level) {
       case LogLevel.DEBUG:
-        console.debug(prefix, message, context || '');
+        mcpLogger.debug(logMessage);
         break;
       case LogLevel.INFO:
-        console.info(prefix, message, context || '');
+        mcpLogger.info(logMessage);
         break;
       case LogLevel.WARN:
-        console.warn(prefix, message, context || '');
+        mcpLogger.warn(logMessage);
         break;
       case LogLevel.ERROR:
-        console.error(prefix, message, context || '', error || '');
+        mcpLogger.error(logMessage);
         break;
     }
   }

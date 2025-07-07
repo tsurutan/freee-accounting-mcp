@@ -30,12 +30,12 @@
     "convict": "^6.2.4",
     "dotenv": "^17.0.0",
     "inversify": "^7.5.4",
+    "mcp-framework": "^0.2.15",
     "neverthrow": "^8.2.0",
     "p-queue": "^8.1.0",
     "p-retry": "^6.2.1",
     "reflect-metadata": "^0.2.2",
     "tslib": "^2.8.1",
-    "winston": "^3.17.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

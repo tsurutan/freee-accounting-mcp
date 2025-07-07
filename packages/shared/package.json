@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@mcp-server/types": "*",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "mcp-framework": "^0.2.15"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

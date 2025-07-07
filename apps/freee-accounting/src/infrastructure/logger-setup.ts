@@ -1,5 +1,5 @@
 /**
- * ログ設定の統合管理
+ * MCP Framework Logger Setup
  */
 
 import { injectable } from 'inversify';
@@ -15,7 +15,7 @@ export interface LogProfile {
 }
 
 /**
- * ログ設定管理
+ * Simplified Logger setup for MCP Framework
  */
 @injectable()
 export class LoggerSetup {

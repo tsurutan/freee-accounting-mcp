@@ -6,6 +6,20 @@
  * Phase 2 リファクタリング後の簡潔なエントリーポイント
  */
 
+// Load .env file if it exists (before any other imports)
+import * as fs from 'fs';
+import * as path from 'path';
+import { config as dotenvConfig } from 'dotenv';
+import { logger as mcpLogger } from 'mcp-framework';
+
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  const result = dotenvConfig({ path: envPath });
+  if (result.error) {
+    mcpLogger.warn(`Warning: Failed to load .env file: ${result.error.message}`);
+  }
+}
+
 import 'reflect-metadata';
 import { serviceContainer } from './container/service-container.js';
 import { TYPES } from './container/types.js';
@@ -57,24 +71,24 @@ async function main(): Promise<void> {
     });
 
   } catch (error) {
-    console.error('Failed to start freee会計 MCP Server:', error);
+    mcpLogger.error(`Failed to start freee会計 MCP Server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     process.exit(1);
   }
 }
 
 // エラーハンドリング
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  mcpLogger.error(`Unhandled Rejection at: ${promise.toString()}, reason: ${reason}`);
   process.exit(1);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  mcpLogger.error(`Uncaught Exception: ${error.message}`);
   process.exit(1);
 });
 
 // メイン関数を実行
 main().catch((error) => {
-  console.error('Main function failed:', error);
+  mcpLogger.error(`Main function failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   process.exit(1);
 });

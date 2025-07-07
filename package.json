@@ -17,8 +17,8 @@
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "debug": "npm run debug --workspace=freee-accounting-mcp",
-    "debug:build": "npm run debug:build --workspace=freee-accounting-mcp",
+    "debug": "npm run debug --workspace=@tsurutan/freee-accounting-mcp",
+    "debug:build": "npm run debug:build --workspace=@tsurutan/freee-accounting-mcp",
     "inspect": "npx @modelcontextprotocol/inspector tsx apps/freee-accounting/src/index.ts",
     "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node apps/freee-accounting/dist/index.js"
   },
@@ -38,6 +38,7 @@
   },
   "packageManager": "npm@9.0.0",
   "dependencies": {
-    "@eslint/js": "^9.30.1"
+    "@eslint/js": "^9.30.1",
+    "mcp-framework": "^0.2.15"
   }
 }

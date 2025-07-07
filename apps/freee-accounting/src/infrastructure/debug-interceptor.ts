@@ -103,19 +103,15 @@ export class DebugInterceptor {
         data: this.truncateData(config.data),
       });
     } else {
-      // 通常のコンソール出力
-      console.error('\n📡 [FREEE API REQUEST]');
-      console.error('URL:', config.url);
-      console.error('Method:', config.method?.toUpperCase());
-      console.error('Headers:', JSON.stringify(this.maskHeaders(config.headers), null, 2));
-
-      if (config.params) {
-        console.error('Params:', JSON.stringify(config.params, null, 2));
-      }
-
-      if (config.data) {
-        console.error('Data:', JSON.stringify(this.truncateData(config.data), null, 2));
-      }
+      // MCP Framework logger使用
+      const requestData = {
+        url: config.url,
+        method: config.method?.toUpperCase(),
+        headers: this.maskHeaders(config.headers),
+        params: config.params,
+        data: config.data ? this.truncateData(config.data) : undefined
+      };
+      this.logger.debug(`📡 [FREEE API REQUEST] ${JSON.stringify(requestData)}`);
     }
   }
 
@@ -133,12 +129,15 @@ export class DebugInterceptor {
         data: this.truncateData(response.data),
       });
     } else {
-      // 通常のコンソール出力
-      console.error('\n📡 [FREEE API RESPONSE]');
-      console.error('Status:', response.status, response.statusText);
-      console.error('URL:', response.config?.url);
-      console.error('Headers:', JSON.stringify(response.headers, null, 2));
-      console.error('Data:', JSON.stringify(this.truncateData(response.data), null, 2));
+      // MCP Framework logger使用
+      const responseData = {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.config?.url,
+        headers: response.headers,
+        data: this.truncateData(response.data)
+      };
+      this.logger.debug(`📡 [FREEE API RESPONSE] ${JSON.stringify(responseData)}`);
     }
   }
 
@@ -155,12 +154,12 @@ export class DebugInterceptor {
         } : undefined,
       });
     } else {
-      console.error('\n❌ [FREEE API REQUEST ERROR]');
-      console.error('Error:', error.message);
-      if (error.config) {
-        console.error('URL:', error.config.url);
-        console.error('Method:', error.config.method);
-      }
+      const errorData = {
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method
+      };
+      this.logger.error(`❌ [FREEE API REQUEST ERROR] ${JSON.stringify(errorData)}`);
     }
   }
 
@@ -177,13 +176,14 @@ export class DebugInterceptor {
         data: error.response?.data ? this.truncateData(error.response.data) : undefined,
       });
     } else {
-      console.error('\n❌ [FREEE API RESPONSE ERROR]');
-      console.error('Error:', error.message);
-      if (error.response) {
-        console.error('Status:', error.response.status, error.response.statusText);
-        console.error('URL:', error.config?.url);
-        console.error('Data:', JSON.stringify(this.truncateData(error.response.data), null, 2));
-      }
+      const errorData = {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        data: error.response?.data ? this.truncateData(error.response.data) : undefined
+      };
+      this.logger.error(`❌ [FREEE API RESPONSE ERROR] ${JSON.stringify(errorData)}`);
     }
   }
 
