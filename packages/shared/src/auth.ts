@@ -14,12 +14,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { tokenEncryption, SecurityAuditor } from './security';
+import { logger } from './logger';
 
 export class FreeeOAuthClient {
   private config: OAuthConfig;
   private httpClient: AxiosInstance;
   private authState: AuthState = { isAuthenticated: false };
   private tokenFilePath: string;
+  private refreshPromise: Promise<OAuthTokens> | null = null;
+  private refreshInProgress = false;
+  private retryCount = 0;
+  private maxRetries = 3;
 
   constructor(config: OAuthConfig) {
     this.config = config;
@@ -38,27 +43,22 @@ export class FreeeOAuthClient {
       // リクエストインターセプター
       this.httpClient.interceptors.request.use(
         (config) => {
-          console.error('\n🔐 [OAUTH REQUEST]');
-          console.error('URL:', config.url);
-          console.error('Method:', config.method?.toUpperCase());
-          console.error('Headers:', JSON.stringify(config.headers, null, 2));
-          if (config.params) {
-            console.error('Params:', JSON.stringify(config.params, null, 2));
-          }
-          if (config.data) {
-            // OAuth認証データは機密情報なので一部マスク
-            const maskedData = typeof config.data === 'string'
+          const requestData = {
+            url: config.url,
+            method: config.method?.toUpperCase(),
+            headers: config.headers,
+            params: config.params,
+            data: config.data ? (typeof config.data === 'string'
               ? config.data.replace(/client_secret=[^&]+/g, 'client_secret=***')
                           .replace(/refresh_token=[^&]+/g, 'refresh_token=***')
                           .replace(/code=[^&]+/g, 'code=***')
-              : config.data;
-            console.error('Data:', maskedData);
-          }
-          console.error('---');
+              : config.data) : undefined
+          };
+          logger.debug(`🔐 [OAUTH REQUEST] ${JSON.stringify(requestData)}`);
           return config;
         },
         (error) => {
-          console.error('❌ [OAUTH REQUEST ERROR]', error);
+          logger.error(`❌ [OAUTH REQUEST ERROR]: ${error.message}`);
           return Promise.reject(error);
         }
       );
@@ -66,33 +66,30 @@ export class FreeeOAuthClient {
       // レスポンスインターセプター
       this.httpClient.interceptors.response.use(
         (response) => {
-          console.error('\n🔐 [OAUTH RESPONSE]');
-          console.error('Status:', response.status, response.statusText);
-          console.error('URL:', response.config?.url);
-          console.error('Headers:', JSON.stringify(response.headers, null, 2));
-
-          // OAuth認証レスポンスは機密情報なので一部マスク
-          const maskedData = response.data ? {
-            ...response.data,
-            access_token: response.data.access_token ? '***' + response.data.access_token.slice(-4) : undefined,
-            refresh_token: response.data.refresh_token ? '***' + response.data.refresh_token.slice(-4) : undefined,
-          } : response.data;
-          console.error('Data:', JSON.stringify(maskedData, null, 2));
-          console.error('---\n');
+          const responseData = {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.config?.url,
+            headers: response.headers,
+            data: response.data ? {
+              ...response.data,
+              access_token: response.data.access_token ? '***' + response.data.access_token.slice(-4) : undefined,
+              refresh_token: response.data.refresh_token ? '***' + response.data.refresh_token.slice(-4) : undefined,
+            } : response.data
+          };
+          logger.debug(`🔐 [OAUTH RESPONSE] ${JSON.stringify(responseData)}`);
           return response;
         },
         (error) => {
-          console.error('\n❌ [OAUTH RESPONSE ERROR]');
-          console.error('Status:', error.response?.status, error.response?.statusText);
-          console.error('URL:', error.config?.url);
-          if (error.response?.headers) {
-            console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
-          }
-          if (error.response?.data) {
-            console.error('Error Data:', JSON.stringify(error.response.data, null, 2));
-          }
-          console.error('Message:', error.message);
-          console.error('---\n');
+          const errorData = {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            url: error.config?.url,
+            headers: error.response?.headers,
+            errorData: error.response?.data,
+            message: error.message
+          };
+          logger.error(`❌ [OAUTH RESPONSE ERROR] ${JSON.stringify(errorData)}`);
           return Promise.reject(error);
         }
       );
@@ -159,10 +156,29 @@ export class FreeeOAuthClient {
         }
       );
 
+      const now = Math.floor(Date.now() / 1000);
       const tokens: OAuthTokens = {
         ...response.data,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: now,
       };
+
+      // デバッグログ: トークン交換時の詳細情報
+      if (process.env.DEBUG === 'true') {
+        logger.debug('🔄 Exchange code for tokens debug', {
+          requestTime: now,
+          receivedData: {
+            access_token: response.data.access_token ? response.data.access_token.substring(0, 20) + '...' + response.data.access_token.substring(-10) : 'N/A',
+            refresh_token: response.data.refresh_token ? response.data.refresh_token.substring(0, 20) + '...' + response.data.refresh_token.substring(-10) : 'N/A',
+            token_type: response.data.token_type,
+            expires_in: response.data.expires_in,
+            scope: response.data.scope,
+            company_id: response.data.company_id,
+            external_cid: response.data.external_cid
+          },
+          calculatedExpiresAt: now + response.data.expires_in,
+          expiresInMinutes: Math.floor(response.data.expires_in / 60)
+        });
+      }
 
       this.setTokens(tokens);
       return tokens;
@@ -183,6 +199,20 @@ export class FreeeOAuthClient {
    */
   async refreshTokens(refreshToken: string): Promise<OAuthTokens> {
     try {
+      const refreshStartTime = Math.floor(Date.now() / 1000);
+      const oldTokens = this.authState.tokens;
+      
+      // デバッグログ: リフレッシュ開始時の情報
+      if (process.env.DEBUG === 'true') {
+        logger.debug('🔄 Starting token refresh', {
+          refreshStartTime,
+          oldTokenCreatedAt: oldTokens?.created_at,
+          oldTokenExpiresAt: this.authState.expiresAt,
+          oldTokenRemainingTime: this.authState.expiresAt ? this.authState.expiresAt - refreshStartTime : null,
+          refreshTokenPreview: refreshToken.substring(0, 20) + '...' + refreshToken.substring(-10)
+        });
+      }
+      
       const params = new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: this.config.clientId,
@@ -200,10 +230,26 @@ export class FreeeOAuthClient {
         }
       );
 
+      const now = Math.floor(Date.now() / 1000);
       const tokens: OAuthTokens = {
         ...response.data,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: now,
       };
+
+      // デバッグログ: リフレッシュ完了時の情報
+      if (process.env.DEBUG === 'true') {
+        logger.debug('✅ Token refresh completed', {
+          refreshCompleteTime: now,
+          refreshDuration: now - refreshStartTime,
+          newTokenCreatedAt: tokens.created_at,
+          newTokenExpiresIn: tokens.expires_in,
+          newTokenExpiresAt: tokens.created_at + tokens.expires_in,
+          newTokenRemainingTime: tokens.expires_in,
+          newTokenRemainingMinutes: Math.floor(tokens.expires_in / 60),
+          newAccessTokenPreview: tokens.access_token.substring(0, 20) + '...' + tokens.access_token.substring(-10),
+          newRefreshTokenPreview: tokens.refresh_token.substring(0, 20) + '...' + tokens.refresh_token.substring(-10)
+        });
+      }
 
       this.setTokens(tokens);
       return tokens;
@@ -303,19 +349,103 @@ export class FreeeOAuthClient {
 
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = this.authState.expiresAt || 0;
+    const remainingTime = expiresAt - now;
+
+    // デバッグログ: トークン有効期限情報
+    if (process.env.DEBUG === 'true') {
+      logger.debug('🔍 Token validation debug', {
+        now,
+        expiresAt,
+        remainingTime,
+        remainingMinutes: Math.floor(remainingTime / 60),
+        created_at: this.authState.tokens.created_at,
+        expires_in: this.authState.tokens.expires_in,
+        calculatedExpiresAt: this.authState.tokens.created_at + this.authState.tokens.expires_in,
+        isExpired: now >= expiresAt,
+        needsRefresh: now >= expiresAt - 300,
+        tokenPreview: this.authState.tokens.access_token.substring(0, 20) + '...' + this.authState.tokens.access_token.substring(-10)
+      });
+    }
 
     // トークンの有効期限が5分以内の場合は更新
     if (now >= expiresAt - 300) {
       try {
-        await this.refreshTokens(this.authState.tokens.refresh_token);
+        await this.refreshTokensSynchronized();
+        
+        // リフレッシュ後にトークンが有効かどうかを再確認
+        if (!this.isTokenValid()) {
+          throw new Error('Token is still invalid after refresh');
+        }
       } catch (error) {
-        // リフレッシュに失敗した場合は認証状態をクリア
-        this.clearAuth();
+        // リフレッシュに失敗した場合のエラーハンドリング改善
+        this.handleRefreshError(error);
         throw error;
       }
     }
 
     return this.authState.tokens!.access_token;
+  }
+
+  /**
+   * 同期化されたトークンリフレッシュ（並行呼び出し対応）
+   */
+  private async refreshTokensSynchronized(): Promise<void> {
+    // 既にリフレッシュが進行中の場合は、その結果を待つ
+    if (this.refreshInProgress && this.refreshPromise) {
+      if (process.env.DEBUG === 'true') {
+        logger.debug('🔄 Token refresh already in progress, waiting for completion');
+      }
+      await this.refreshPromise;
+      return;
+    }
+
+    // リフレッシュ中フラグを設定
+    this.refreshInProgress = true;
+    
+    try {
+      // リフレッシュPromiseを作成してキャッシュ
+      this.refreshPromise = this.refreshTokens(this.authState.tokens!.refresh_token);
+      await this.refreshPromise;
+      
+      // 成功時にリトライカウントをリセット
+      this.retryCount = 0;
+      
+      if (process.env.DEBUG === 'true') {
+        logger.debug('✅ Token refresh completed successfully');
+      }
+    } finally {
+      // リフレッシュ完了時にフラグとPromiseをクリア
+      this.refreshInProgress = false;
+      this.refreshPromise = null;
+    }
+  }
+
+  /**
+   * リフレッシュエラーのハンドリング改善
+   */
+  private handleRefreshError(error: any): void {
+    this.retryCount++;
+    
+    if (process.env.DEBUG === 'true') {
+      logger.error(`❌ Token refresh failed (attempt ${this.retryCount}/${this.maxRetries}): ${error.message}`);
+    }
+
+    // 最大リトライ回数に達した場合、または特定のエラーの場合のみ認証状態をクリア
+    if (this.retryCount >= this.maxRetries || this.isCriticalAuthError(error)) {
+      if (process.env.DEBUG === 'true') {
+        logger.debug('🔄 Max retries reached or critical error, clearing auth state');
+      }
+      this.clearAuth();
+    }
+  }
+
+  /**
+   * 認証状態をクリアすべき重要なエラーかどうかを判定
+   */
+  private isCriticalAuthError(error: any): boolean {
+    const status = error.response?.status;
+    // リフレッシュトークンが無効 (400), 認証エラー (401), 権限なし (403)
+    return status === 400 || status === 401 || status === 403;
   }
 
   /**
@@ -365,7 +495,7 @@ export class FreeeOAuthClient {
       }
     } catch (error) {
       SecurityAuditor.log('token_save_failed', 'medium', { error: error instanceof Error ? error.message : 'Unknown error' });
-      console.error('Failed to save tokens to file:', error);
+      logger.error(`Failed to save tokens to file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -418,7 +548,7 @@ export class FreeeOAuthClient {
       SecurityAuditor.log('token_load_failed', 'medium', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      console.error('Failed to load tokens from file:', error);
+      logger.error(`Failed to load tokens from file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       this.deleteTokenFile();
     }
   }
@@ -432,7 +562,7 @@ export class FreeeOAuthClient {
         fs.unlinkSync(this.tokenFilePath);
       }
     } catch (error) {
-      console.error('Failed to delete token file:', error);
+      logger.error(`Failed to delete token file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -440,10 +570,31 @@ export class FreeeOAuthClient {
    * トークンを設定（オーバーライド）
    */
   setTokens(tokens: OAuthTokens): void {
+    const now = Math.floor(Date.now() / 1000);
+    const expiresAt = tokens.created_at + tokens.expires_in;
+    
+    // デバッグログ: トークン設定時の詳細情報
+    if (process.env.DEBUG === 'true') {
+      logger.debug('🔧 Setting tokens debug', {
+        now,
+        created_at: tokens.created_at,
+        expires_in: tokens.expires_in,
+        calculatedExpiresAt: expiresAt,
+        timeUntilExpiry: expiresAt - now,
+        timeUntilExpiryMinutes: Math.floor((expiresAt - now) / 60),
+        token_type: tokens.token_type,
+        scope: tokens.scope,
+        company_id: tokens.company_id,
+        external_cid: tokens.external_cid,
+        tokenPreview: tokens.access_token.substring(0, 20) + '...' + tokens.access_token.substring(-10),
+        refreshTokenPreview: tokens.refresh_token.substring(0, 20) + '...' + tokens.refresh_token.substring(-10)
+      });
+    }
+    
     this.authState = {
       isAuthenticated: true,
       tokens,
-      expiresAt: tokens.created_at + tokens.expires_in,
+      expiresAt,
     };
     this.saveTokensToFile();
   }
@@ -455,4 +606,5 @@ export class FreeeOAuthClient {
     this.authState = { isAuthenticated: false };
     this.deleteTokenFile();
   }
+
 }

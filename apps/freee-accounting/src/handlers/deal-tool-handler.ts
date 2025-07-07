@@ -8,6 +8,7 @@ import { TYPES } from '../container/types.js';
 import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
+import { EnvironmentConfig } from '../config/environment-config.js';
 import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { DateUtils } from '../utils/date-utils.js';
 import { CreateDealDto, UpdateDealDto, GetDealsDto } from '../utils/validator.js';
@@ -25,6 +26,7 @@ export class DealToolHandler extends BaseToolHandler {
     @inject(TYPES.Logger) logger: any,
     @inject(TYPES.Validator) validator: any,
     @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
     @inject(TYPES.DateUtils) private readonly dateUtils: DateUtils,
     @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeApiClient
   ) {
@@ -288,7 +290,9 @@ export class DealToolHandler extends BaseToolHandler {
         throw validationResult.error;
       }
 
-      const companyId = this.appConfig.companyId;
+      // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       let startDate: string;
       let endDate: string;
 
@@ -359,7 +363,9 @@ export class DealToolHandler extends BaseToolHandler {
         throw validationResult.error;
       }
 
-      const companyId = this.appConfig.companyId;
+      // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const dealId = args.deal_id;
 
       // freee APIから取引詳細を取得
@@ -397,7 +403,9 @@ export class DealToolHandler extends BaseToolHandler {
         throw balanceValidation.error;
       }
 
-      const companyId = this.appConfig.companyId;
+      // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
 
       // freee APIで取引を作成
       const createdDeal = await this.freeeClient.createDeal({
@@ -442,7 +450,9 @@ export class DealToolHandler extends BaseToolHandler {
         }
       }
 
-      const companyId = this.appConfig.companyId;
+      // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const dealId = updateDealDto.deal_id;
 
       // freee APIで取引を更新
@@ -477,7 +487,9 @@ export class DealToolHandler extends BaseToolHandler {
         throw validationResult.error;
       }
 
-      const companyId = this.appConfig.companyId;
+      // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const dealId = args.deal_id;
 
       // freee APIで取引を削除

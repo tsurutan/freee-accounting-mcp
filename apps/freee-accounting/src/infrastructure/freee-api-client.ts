@@ -105,6 +105,8 @@ export interface ApiCallResult<T = any> {
 export class FreeeApiClient {
   private readonly client: FreeeClient;
   private readonly debugInterceptor: DebugInterceptor;
+  private authPromise: Promise<void> | null = null;
+  private lastTokenSet: string | null = null;
 
   constructor(
     @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
@@ -146,6 +148,83 @@ export class FreeeApiClient {
   }
 
   /**
+   * OAuth認証が必要な場合、トークンを自動で注入（重複実行防止）
+   */
+  private async ensureAuthenticated(): Promise<void> {
+    if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
+      // 既に認証処理が進行中の場合は待機
+      if (this.authPromise) {
+        await this.authPromise;
+        return;
+      }
+
+      try {
+        // 認証処理を開始
+        this.authPromise = this.performAuthentication();
+        await this.authPromise;
+      } finally {
+        // 認証処理完了後にPromiseをクリア
+        this.authPromise = null;
+      }
+    }
+  }
+
+  /**
+   * 実際の認証処理を実行
+   */
+  private async performAuthentication(): Promise<void> {
+    try {
+      const authStartTime = Date.now();
+      
+      // デバッグログ: 認証処理開始時の情報
+      if (process.env.DEBUG === 'true') {
+        this.logger.debug('🔐 Starting authentication process', {
+          authStartTime,
+          lastTokenSet: this.lastTokenSet ? this.lastTokenSet.substring(0, 20) + '...' + this.lastTokenSet.substring(-10) : null,
+          oauthClientAvailable: !!this.envConfig.oauthClient
+        });
+      }
+      
+      const token = await this.envConfig.oauthClient!.getValidAccessToken();
+      
+      // デバッグログ: 取得したトークンの詳細情報
+      if (process.env.DEBUG === 'true') {
+        this.logger.debug('🔑 Token retrieved from OAuth client', {
+          tokenLength: token.length,
+          tokenPreview: token.substring(0, 20) + '...' + token.substring(-10),
+          isDuplicate: this.lastTokenSet === token,
+          authDuration: Date.now() - authStartTime,
+          isTokenValid: this.envConfig.oauthClient!.isTokenValid(),
+          companyId: this.envConfig.oauthClient!.getCompanyId()
+        });
+      }
+      
+      // 同じトークンが既に設定されている場合はスキップ
+      if (this.lastTokenSet === token) {
+        this.logger.debug('Token already set, skipping duplicate set');
+        return;
+      }
+      
+      
+      this.client.setAccessToken(token);
+      this.lastTokenSet = token;
+      
+      // デバッグログ: 認証完了時の情報
+      if (process.env.DEBUG === 'true') {
+        this.logger.debug('✅ OAuth token set for API client', {
+          totalAuthDuration: Date.now() - authStartTime,
+          tokenSetSuccessfully: true
+        });
+      } else {
+        this.logger.debug('OAuth token set for API client');
+      }
+    } catch (error) {
+      this.logger.error('Failed to get valid access token', { error });
+      throw this.errorHandler.authError('認証エラー: アクセストークンが無効です');
+    }
+  }
+
+  /**
    * 汎用的なAPI呼び出し
    */
   async call<T = any>(
@@ -173,6 +252,15 @@ export class FreeeApiClient {
     });
 
     try {
+      // OAuth認証が必要な場合、トークンを注入
+      await this.ensureAuthenticated();
+      
+      // 最後のチェック: トークンが有効かどうかを確認
+      if (this.envConfig.oauthClient && !this.envConfig.oauthClient.isTokenValid()) {
+        this.logger.error('Token is invalid just before API call');
+        throw new Error('Token is invalid - authentication may have failed');
+      }
+
       let responseData;
 
       switch (method) {
@@ -484,6 +572,145 @@ export class FreeeApiClient {
     } else {
       this.logger.error('FreeeApiClient.deleteDeal failed', { error: result.error });
       throw new Error(`Failed to delete deal: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 勘定科目一覧を取得
+   */
+  async getAccountItems(params: {
+    company_id: number;
+    base_date?: string;
+  }): Promise<any> {
+    this.logger.info('FreeeApiClient.getAccountItems called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.base_date) searchParams.append('base_date', params.base_date);
+
+    const result = await this.get(`/api/1/account_items?${searchParams.toString()}`, undefined, {
+      operation: 'get_account_items',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getAccountItems success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+      });
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getAccountItems failed', { error: result.error });
+      throw new Error(`Failed to get account items: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 取引先一覧を取得
+   */
+  async getPartners(params: {
+    company_id: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<any> {
+    this.logger.info('FreeeApiClient.getPartners called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params.offset !== undefined) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/partners?${searchParams.toString()}`, undefined, {
+      operation: 'get_partners',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getPartners success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+      });
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getPartners failed', { error: result.error });
+      throw new Error(`Failed to get partners: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 部門一覧を取得
+   */
+  async getSections(params: {
+    company_id: number;
+  }): Promise<any> {
+    this.logger.info('FreeeApiClient.getSections called', { params });
+
+    const result = await this.get(`/api/1/sections?company_id=${params.company_id}`, undefined, {
+      operation: 'get_sections',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getSections success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+      });
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getSections failed', { error: result.error });
+      throw new Error(`Failed to get sections: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 品目一覧を取得
+   */
+  async getItems(params: {
+    company_id: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<any> {
+    this.logger.info('FreeeApiClient.getItems called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.limit !== undefined) searchParams.append('limit', params.limit.toString());
+    if (params.offset !== undefined) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/items?${searchParams.toString()}`, undefined, {
+      operation: 'get_items',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getItems success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+      });
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getItems failed', { error: result.error });
+      throw new Error(`Failed to get items: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: メモタグ一覧を取得
+   */
+  async getTags(params: {
+    company_id: number;
+  }): Promise<any> {
+    this.logger.info('FreeeApiClient.getTags called', { params });
+
+    const result = await this.get(`/api/1/tags?company_id=${params.company_id}`, undefined, {
+      operation: 'get_tags',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getTags success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+      });
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getTags failed', { error: result.error });
+      throw new Error(`Failed to get tags: ${result.error.message}`);
     }
   }
 }
