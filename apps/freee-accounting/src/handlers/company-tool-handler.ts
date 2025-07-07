@@ -234,21 +234,17 @@ export class CompanyToolHandler extends BaseToolHandler {
       this.logger.info('Getting account items', { args });
 
       const companyId = this.appConfig.companyId;
-      let url = `/api/1/account_items?company_id=${companyId}`;
+      const params: { company_id: number; base_date?: string } = { company_id: companyId };
 
       if (args.base_date) {
         const dateValidation = this.validator.validateDateString(args.base_date);
         if (dateValidation.isErr()) {
           return this.createErrorResult(dateValidation.error);
         }
-        url += `&base_date=${args.base_date}`;
+        params.base_date = args.base_date;
       }
 
-      const response = await this.freeeClient.get(url);
-      if (response.isErr()) {
-        throw response.error;
-      }
-      const accountItems = response.value.data;
+      const accountItems = await this.freeeClient.getAccountItems(params);
 
       this.logger.info('Account items retrieved successfully', {
         count: accountItems?.account_items?.length || 0
@@ -272,13 +268,11 @@ export class CompanyToolHandler extends BaseToolHandler {
       const limit = args.limit || 100;
       const offset = args.offset || 0;
 
-      const response = await this.freeeClient.get(
-        `/api/1/partners?company_id=${companyId}&limit=${limit}&offset=${offset}`
-      );
-      if (response.isErr()) {
-        throw response.error;
-      }
-      const partners = response.value.data;
+      const partners = await this.freeeClient.getPartners({
+        company_id: companyId,
+        limit,
+        offset
+      });
 
       this.logger.info('Partners retrieved successfully', {
         count: partners?.partners?.length || 0,
@@ -301,11 +295,9 @@ export class CompanyToolHandler extends BaseToolHandler {
       this.logger.info('Getting sections');
 
       const companyId = this.appConfig.companyId;
-      const response = await this.freeeClient.get(`/api/1/sections?company_id=${companyId}`);
-      if (response.isErr()) {
-        throw response.error;
-      }
-      const sections = response.value.data;
+      const sections = await this.freeeClient.getSections({
+        company_id: companyId
+      });
 
       this.logger.info('Sections retrieved successfully', {
         count: sections?.sections?.length || 0
@@ -329,13 +321,11 @@ export class CompanyToolHandler extends BaseToolHandler {
       const limit = args.limit || 100;
       const offset = args.offset || 0;
 
-      const response = await this.freeeClient.get(
-        `/api/1/items?company_id=${companyId}&limit=${limit}&offset=${offset}`
-      );
-      if (response.isErr()) {
-        throw response.error;
-      }
-      const items = response.value.data;
+      const items = await this.freeeClient.getItems({
+        company_id: companyId,
+        limit,
+        offset
+      });
 
       this.logger.info('Items retrieved successfully', {
         count: items?.items?.length || 0,
@@ -358,11 +348,9 @@ export class CompanyToolHandler extends BaseToolHandler {
       this.logger.info('Getting tags');
 
       const companyId = this.appConfig.companyId;
-      const response = await this.freeeClient.get(`/api/1/tags?company_id=${companyId}`);
-      if (response.isErr()) {
-        throw response.error;
-      }
-      const tags = response.value.data;
+      const tags = await this.freeeClient.getTags({
+        company_id: companyId
+      });
 
       this.logger.info('Tags retrieved successfully', {
         count: tags?.tags?.length || 0

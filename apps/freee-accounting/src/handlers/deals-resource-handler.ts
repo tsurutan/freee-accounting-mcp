@@ -10,12 +10,18 @@ import { MCPResourceResponse } from '../utils/response-builder.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
 import { DateUtils } from '../utils/date-utils.js';
+import { ApiCallResult } from '../infrastructure/freee-api-client.js';
 // import { FreeeClient } from '@mcp-server/shared';
 // 一時的な型定義
 interface FreeeClient {
   getCompanies(): Promise<{ companies: any[] }>;
   getDeals(params: any): Promise<{ deals: any[]; meta: { total_count: number } }>;
-  get(url: string): Promise<{ data: any }>;
+  getAccountItems(params: any): Promise<any>;
+  getPartners(params: any): Promise<any>;
+  getSections(params: any): Promise<any>;
+  getItems(params: any): Promise<any>;
+  getTags(params: any): Promise<any>;
+  get(url: string): Promise<Result<ApiCallResult<any>, AppError>>;
 }
 
 /**
@@ -216,7 +222,10 @@ export class DealsResourceHandler extends BaseResourceHandler {
 
       const companyId = this.appConfig.companyId;
       const response = await this.freeeClient.get(`/api/1/deals/${dealId}?company_id=${companyId}`);
-      const deal = response.data;
+      if (response.isErr()) {
+        throw response.error;
+      }
+      const deal = response.value.data;
 
       this.logger.debug('Deal details retrieved', {
         dealId,

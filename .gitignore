@@ -100,3 +100,5 @@ jspm_packages/
 # Authentication tokens and secrets
 auth-tokens.json
 credentials.json
+
+**/*/.env

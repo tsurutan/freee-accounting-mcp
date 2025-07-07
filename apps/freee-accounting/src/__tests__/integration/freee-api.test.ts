@@ -70,7 +70,7 @@ describe('freee API Integration', () => {
   });
 
   describe('事業所API', () => {
-    it('事業所一覧を正常に取得する', async () => {
+    it('事業所一覧を正常に取得する（OAuth認証あり）', async () => {
       // Arrange
       const mockCompanies = [
         { id: 123456, name: 'テスト事業所1', role: 'admin' },
@@ -81,8 +81,10 @@ describe('freee API Integration', () => {
       nock.cleanAll();
       nock.disableNetConnect();
 
+      // OAuth認証付きでAPIリクエストをモック
       const scope = nock('https://api.freee.co.jp')
         .get('/api/1/companies')
+        .matchHeader('authorization', /^Bearer .+/)
         .reply(200, { companies: mockCompanies });
 
       // Act
@@ -101,16 +103,34 @@ describe('freee API Integration', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('現在の事業所情報を正常に取得する', async () => {
+    it('現在の事業所情報を正常に取得する（OAuth認証あり）', async () => {
+      // Arrange
+      const mockCompany = { id: 123456, name: 'テスト事業所1', role: 'admin' };
+
+      // nockをリセットし、ネットワーク接続を無効化
+      nock.cleanAll();
+      nock.disableNetConnect();
+
+      // OAuth認証付きでAPIリクエストをモック
+      const scope = nock('https://api.freee.co.jp')
+        .get('/api/1/companies/123456')
+        .matchHeader('authorization', /^Bearer .+/)
+        .reply(200, mockCompany);
+
       // Act
       const result = await companyToolHandler.executeTool('get-current-company', {});
 
       // Assert
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        // 認証エラーが期待される
-        expect(result.error.message).toContain('認証');
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.isError).toBeFalsy();
+        expect(result.value.data).toBeDefined();
+        const responseData = result.value.data as any;
+        expect(responseData.company).toEqual(mockCompany);
       }
+      
+      // モックが呼ばれたことを確認
+      expect(scope.isDone()).toBe(true);
     });
 
     it('勘定科目一覧を正常に取得する', async () => {
@@ -186,8 +206,12 @@ describe('freee API Integration', () => {
   describe('エラーハンドリング', () => {
     it('401認証エラーを適切に処理する', async () => {
       // Arrange
+      nock.cleanAll();
+      nock.disableNetConnect();
+
       nock('https://api.freee.co.jp')
         .get('/api/1/companies')
+        .matchHeader('authorization', /^Bearer .+/)
         .reply(401, { message: 'Unauthorized' });
 
       // Act

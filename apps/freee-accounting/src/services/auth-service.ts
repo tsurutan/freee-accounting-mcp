@@ -10,16 +10,7 @@ import { Logger } from '../infrastructure/logger.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { IAuthService, ServiceHealthStatus } from '../interfaces/service.js';
 import { OAuthTokenResponse, AuthContext } from '../types/api.js';
-/**
- * OAuth トークンの型定義
- */
-export interface OAuthTokens {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: Date;
-  tokenType?: string;
-  scope?: string;
-}
+import { OAuthTokens } from '@mcp-server/types';
 
 /**
  * 認証状態の型定義
@@ -108,40 +99,64 @@ export class AuthService implements IAuthService {
   checkAuthenticationStatus(): Result<AuthState, AppError> {
     this.logger.debug('Checking authentication status');
 
-    if (this.envConfig.useOAuth && this.envConfig.oauthClient) {
-      // OAuth認証の場合
-      const authState = this.envConfig.oauthClient.getAuthState();
-
-      if (!authState.isAuthenticated) {
-        const authError = this.errorHandler.authError(
-          'OAuth認証が必要です。generate-auth-url ツールを使用して認証を開始してください'
-        );
-        this.logger.warn('OAuth authentication required');
-        return err(authError);
-      }
-
-      this.logger.info('OAuth authentication successful', {
-        companyId: this.envConfig.oauthClient.getCompanyId(),
-        externalCid: this.envConfig.oauthClient.getExternalCid(),
-      });
-
-      return ok({
-        isAuthenticated: true,
-        authMode: 'oauth',
-        expiresAt: authState.expiresAt,
-        companyId: this.envConfig.oauthClient.getCompanyId() || undefined,
-        externalCid: this.envConfig.oauthClient.getExternalCid(),
-        scope: authState.tokens?.scope,
-        tokens: authState.tokens,
-      } as AuthState);
+    // OAuth設定の詳細チェック
+    if (!this.envConfig.useOAuth) {
+      const authError = this.errorHandler.authError(
+        'OAuth認証が無効です。環境変数を確認してください:\n' +
+        '1. .envファイルを作成 (例: .env.exampleを参考)\n' +
+        '2. FREEE_CLIENT_ID=your_client_id\n' +
+        '3. FREEE_CLIENT_SECRET=your_client_secret\n' +
+        '4. FREEE_REDIRECT_URI=urn:ietf:wg:oauth:2.0:oob'
+      );
+      this.logger.error('OAuth not configured - missing environment variables');
+      return err(authError);
     }
 
-    // 認証設定が不正
-    const authError = this.errorHandler.authError(
-      'OAuth設定（FREEE_CLIENT_ID, FREEE_CLIENT_SECRET）を設定してください'
-    );
-    this.logger.error('Authentication configuration is invalid');
-    return err(authError);
+    if (!this.envConfig.oauthClient) {
+      const authError = this.errorHandler.authError(
+        'OAuthクライアントの初期化に失敗しました。環境変数を確認してください:\n' +
+        '- FREEE_CLIENT_ID: ' + (process.env.FREEE_CLIENT_ID ? '✓ 設定済み' : '❌ 未設定') + '\n' +
+        '- FREEE_CLIENT_SECRET: ' + (process.env.FREEE_CLIENT_SECRET ? '✓ 設定済み' : '❌ 未設定') + '\n' +
+        '- FREEE_REDIRECT_URI: ' + (process.env.FREEE_REDIRECT_URI ? '✓ 設定済み' : '❌ 未設定')
+      );
+      this.logger.error('OAuth client initialization failed', {
+        hasClientId: !!process.env.FREEE_CLIENT_ID,
+        hasClientSecret: !!process.env.FREEE_CLIENT_SECRET,
+        hasRedirectUri: !!process.env.FREEE_REDIRECT_URI
+      });
+      return err(authError);
+    }
+
+    // OAuth認証の場合
+    const authState = this.envConfig.oauthClient.getAuthState();
+
+    if (!authState.isAuthenticated) {
+      const authError = this.errorHandler.authError(
+        'OAuth認証が必要です。以下の手順で認証を開始してください:\n' +
+        '1. generate-auth-url ツールを実行\n' +
+        '2. 表示されたURLをブラウザで開く\n' +
+        '3. freeeアカウントでログイン\n' +
+        '4. 認証コードを取得\n' +
+        '5. exchange-auth-code ツールで認証コードを設定'
+      );
+      this.logger.warn('OAuth authentication required');
+      return err(authError);
+    }
+
+    this.logger.info('OAuth authentication successful', {
+      companyId: this.envConfig.oauthClient.getCompanyId(),
+      externalCid: this.envConfig.oauthClient.getExternalCid(),
+    });
+
+    return ok({
+      isAuthenticated: true,
+      authMode: 'oauth',
+      expiresAt: authState.expiresAt,
+      companyId: this.envConfig.oauthClient.getCompanyId() || undefined,
+      externalCid: this.envConfig.oauthClient.getExternalCid(),
+      scope: authState.tokens?.scope,
+      tokens: authState.tokens,
+    } as AuthState);
   }
 
   /**

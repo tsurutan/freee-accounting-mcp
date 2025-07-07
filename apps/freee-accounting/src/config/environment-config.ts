@@ -7,83 +7,10 @@ import convict from 'convict';
 import { Result, ok, err } from 'neverthrow';
 import * as fs from 'fs';
 import * as path from 'path';
+import { FreeeOAuthClient } from '@mcp-server/shared';
+import { OAuthConfig } from '@mcp-server/types';
+import { config as dotenvConfig } from 'dotenv';
 
-/**
- * OAuth設定の型定義
- */
-export interface OAuthConfig {
-  clientId: string;
-  clientSecret: string;
-  redirectUri?: string;
-  companyId?: number;
-  baseUrl?: string;
-}
-
-/**
- * FreeeOAuthClient クラス（簡易実装）
- */
-export class FreeeOAuthClient {
-  private authState: any = {
-    isAuthenticated: false,
-    tokens: null,
-    expiresAt: null
-  };
-  private companyId?: number;
-  private externalCid?: string;
-  private companySelectionEnabled = true;
-
-  constructor(private config: OAuthConfig) {}
-  
-  getConfig(): OAuthConfig {
-    return this.config;
-  }
-
-  generateAuthUrl(state?: string, enableCompanySelection = true): string {
-    this.companySelectionEnabled = enableCompanySelection;
-    // Mock implementation
-    return `https://accounts.freee.co.jp/public_api/authorize?client_id=${this.config.clientId}&response_type=code&state=${state || ''}`;
-  }
-
-  async exchangeCodeForTokens(code: string): Promise<any> {
-    // Mock implementation
-    return {
-      access_token: 'mock_access_token',
-      refresh_token: 'mock_refresh_token',
-      token_type: 'Bearer',
-      expires_in: 3600,
-      scope: 'read write',
-      company_id: 123456,
-      external_cid: 'mock_external_cid'
-    };
-  }
-
-  async refreshTokens(refreshToken: string): Promise<any> {
-    // Mock implementation
-    return {
-      access_token: 'new_mock_access_token',
-      refresh_token: 'new_mock_refresh_token',
-      token_type: 'Bearer',
-      expires_in: 3600,
-      scope: 'read write'
-    };
-  }
-
-  getAuthState(): any {
-    return this.authState;
-  }
-
-  getCompanyId(): number | undefined {
-    return this.companyId;
-  }
-
-  getExternalCid(): string | undefined {
-    return this.externalCid;
-  }
-
-  isCompanySelectionEnabled(): boolean {
-    return this.companySelectionEnabled;
-  }
-}
 
 /**
  * 環境変数の型定義
@@ -120,7 +47,7 @@ export class EnvironmentConfig {
   private _oauthClient?: FreeeOAuthClient;
 
   constructor() {
-    // .envファイルを手動で読み込み（MCP Inspector対応）
+    // .envファイルを最初に読み込み、convict初期化前に環境変数を設定
     this.loadEnvFile();
 
     // convictスキーマの定義
@@ -174,31 +101,44 @@ export class EnvironmentConfig {
       },
     });
 
+    // convictが環境変数を正しく読み込んでいない場合の緊急対処
+    if (!this.config.get('freee.clientId') && process.env.FREEE_CLIENT_ID) {
+      this.config.set('freee.clientId', process.env.FREEE_CLIENT_ID);
+    }
+    
+    if (!this.config.get('freee.clientSecret') && process.env.FREEE_CLIENT_SECRET) {
+      this.config.set('freee.clientSecret', process.env.FREEE_CLIENT_SECRET);
+    }
+    
     // 設定の検証
     this.config.validate({ allowed: 'strict' });
   }
 
   /**
-   * .envファイルを手動で読み込み
+   * .envファイルを読み込み（dotenv使用、複数パス対応）
    */
   private loadEnvFile(): void {
     try {
-      const envPath = path.join(process.cwd(), '.env');
-      if (fs.existsSync(envPath)) {
-        const envContent = fs.readFileSync(envPath, 'utf8');
-        envContent.split('\n').forEach(line => {
-          const trimmed = line.trim();
-          if (trimmed && !trimmed.startsWith('#')) {
-            const [key, ...valueParts] = trimmed.split('=');
-            if (key && valueParts.length > 0) {
-              const value = valueParts.join('=');
-              process.env[key] = value;
-            }
+      // srcとdist両方に対応した複数の.envファイルパスを試行
+      const envPaths = [
+        path.join(process.cwd(), '.env'),
+        path.join(__dirname, '../../../.env'),
+        path.join(__dirname, '../.env'),
+        path.join(__dirname, '../../../../.env'),
+        path.join(__dirname, '../../.env'),
+        path.resolve(process.cwd(), 'apps/freee-accounting/.env'),
+      ];
+
+      for (const envPath of envPaths) {
+        if (envPath && fs.existsSync(envPath)) {
+          const result = dotenvConfig({ path: envPath });
+          if (!result.error) {
+            break; // 最初に成功したファイルで終了
           }
-        });
+        }
       }
     } catch (error) {
-      // 環境変数読み込みエラーは無視（MCP Inspector使用時）
+      // .envファイル読み込みエラーは無視（環境変数があれば動作する）
     }
   }
 
