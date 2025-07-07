@@ -60,7 +60,7 @@ mcp-server/
 ## ✨ 特徴
 
 - 🔐 **OAuth 2.0認証**: freee公式認証フローに完全準拠
-- 🏢 **事業所ID設定**: 環境変数で事業所IDを設定可能（デフォルト: 123456）
+- 🏢 **事業所ID設定**: OAuth認証時に選択された事業所を自動使用
 - 💰 **包括的な取引管理**: 取引の作成・更新・一覧取得をサポート
 - 🛡️ **型安全**: TypeScriptによる完全な型定義
 - 📦 **モノレポ構成**: 共通ライブラリとアプリケーションの分離
@@ -105,9 +105,6 @@ npm run build
 FREEE_CLIENT_ID=your_client_id
 FREEE_CLIENT_SECRET=your_client_secret
 
-# 事業所ID設定（下記「事業所IDの取得方法」を参照）
-FREEE_COMPANY_ID=123456
-
 # オプション設定
 FREEE_API_BASE_URL=https://api.freee.co.jp
 ```
@@ -116,21 +113,114 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 > - OAuth認証では事業所選択機能を制御できます。
 > - 事業所選択を有効にすると、認証時に特定の事業所を選択してアクセスを制限できます。
 > - 事業所選択を無効にすると、ユーザーが所属する全ての事業所にアクセス可能になります。
+> - 認証URL は `https://accounts.secure.freee.co.jp` ドメインを使用します。
 
-### 🏢 事業所IDの取得方法
+### 🏢 事業所の選択について
 
-事業所IDを取得する方法は複数あります：
+OAuth認証時に事業所が自動的に選択・使用されます：
 
-1. **🌐 freee Web版から取得**
-   - freee Web版にログインし、設定画面やURLから事業所IDを確認できます
-   - ブラウザのアドレスバーで `https://secure.freee.co.jp/companies/XXXXXX` のXXXXXXが事業所IDです
+1. **🔐 認証フロー内での自動選択**
+   - OAuth認証URL生成時に事業所選択が有効化されます
+   - 認証画面で使用したい事業所を選択してください
+   - 選択された事業所IDが自動的にトークンに保存され、以降のAPI呼び出しで使用されます
 
-2. **🔌 API経由で取得**
-   - 認証後、`get-companies` ツールを使用して利用可能な事業所一覧を取得できます
-   - レスポンスの `id` フィールドが事業所IDになります
+2. **🔍 現在の事業所確認方法**
+   - `check-auth-status` ツールで現在選択されている事業所を確認できます
+   - `companies://current` リソースで事業所詳細情報を取得できます
 
-3. **🤖 Claude Code経由で取得**
-   - Claude Codeで「利用可能な事業所を教えてください」とリクエストすることで確認できます
+3. **🔄 事業所変更方法**
+   - 異なる事業所を使用したい場合は、再度OAuth認証を実行してください
+   - 新しい認証では異なる事業所を選択できます
+
+## 🔐 認証設定とトラブルシューティング
+
+### 🚀 クイックセットアップ（推奨）
+
+**`npm run debug`で認証エラーが出る場合:**
+
+```bash
+# 1. 認証設定ヘルパーを実行
+node setup-auth.js
+
+# 2. OAuth認証を設定（対話式）
+# - FREEE_CLIENT_ID: freee開発者コンソールで取得
+# - FREEE_CLIENT_SECRET: freee開発者コンソールで取得
+# - FREEE_REDIRECT_URI: urn:ietf:wg:oauth:2.0:oob (通常はそのまま)
+
+# 3. MCP Serverを起動
+npm run debug
+
+# 4. MCP Inspectorで認証フローを実行
+# - generate-auth-url ツールで認証URLを生成
+# - ブラウザで認証を完了
+# - exchange-auth-code ツールで認証コードを設定
+```
+
+### 🔧 手動セットアップ
+
+**.envファイルを手動作成:**
+
+```bash
+# .envファイルを作成
+cp .env.example .env
+
+# .envファイルを編集
+vim .env  # または任意のエディタ
+```
+
+**.envファイルの内容例:**
+
+```env
+# freee OAuth認証設定
+FREEE_CLIENT_ID=your_client_id_here
+FREEE_CLIENT_SECRET=your_client_secret_here
+FREEE_REDIRECT_URI=urn:ietf:wg:oauth:2.0:oob
+
+# デバッグ設定
+DEBUG=true
+LOG_LEVEL=debug
+```
+
+### 🐛 よくある認証エラーと解決方法
+
+**❌ エラー: 「OAuth認証が無効です。環境変数を確認してください」**
+```bash
+# 解決方法:
+1. .envファイルが存在するか確認: ls -la .env
+2. 認証設定ヘルパーを実行: node setup-auth.js
+3. 環境変数を確認: env | grep FREEE_
+```
+
+**❌ エラー: 「認証エラー: アクセストークンが無効です」**
+```bash
+# 解決方法:
+1. MCP Inspectorで generate-auth-url ツールを実行
+2. ブラウザで認証を完了
+3. exchange-auth-code ツールで認証コードを設定
+4. check-auth-status ツールで認証状態を確認
+```
+
+**❌ エラー: 「OAuthクライアントの初期化に失敗しました」**
+```bash
+# 解決方法:
+1. freee開発者コンソールでOAuthアプリケーションを作成
+2. Client IDとClient Secretを正確にコピー
+3. .envファイルに正しい値を設定
+4. MCP Serverを再起動
+```
+
+### 📋 認証状態の確認
+
+```bash
+# 認証状態をチェック
+# MCP Inspectorで check-auth-status ツールを実行
+
+# トークンファイルの確認
+ls -la ~/.freee-mcp-tokens.json
+
+# 環境変数の確認  
+env | grep FREEE_
+```
 
 ### ⚠️ 重要な免責事項
 
@@ -152,7 +242,6 @@ FREEE_API_BASE_URL=https://api.freee.co.jp
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -e FREEE_COMPANY_ID=123456 \
   -- npx @tsurutan/freee-accounting-mcp
 ```
 
@@ -166,7 +255,6 @@ npm install -g @tsurutan/freee-accounting-mcp
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -e FREEE_COMPANY_ID=123456 \
   -- freee-accounting-mcp
 ```
 
@@ -193,7 +281,6 @@ npm run build
 claude mcp add freee-accounting \
   -e FREEE_CLIENT_ID=your_client_id \
   -e FREEE_CLIENT_SECRET=your_client_secret \
-  -e FREEE_COMPANY_ID=123456 \
   -- node ./apps/freee-accounting/dist/index.js
 ```
 
@@ -265,6 +352,11 @@ Claude Codeで以下のようにMCPサーバーを活用できます：
    generate-auth-url --enable_company_selection=false
    ```
 
+   生成されるURLの形式:
+   ```
+   https://accounts.secure.freee.co.jp/public_api/authorize?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&state={state}&prompt=select_company
+   ```
+
    b. 生成されたURLにブラウザでアクセス:
    - freeeアカウントでログイン
    - 事業所を選択（enable_company_selection=trueの場合）
@@ -302,7 +394,7 @@ get-deals --year 2024 --month 12
 # 取引一覧の取得（日付範囲指定）
 get-deals --start_date 2024-12-01 --end_date 2024-12-31
 
-# 取引の作成（事業所ID自動設定）
+# 取引の作成（選択された事業所で自動実行）
 create-deal
 ```
 
