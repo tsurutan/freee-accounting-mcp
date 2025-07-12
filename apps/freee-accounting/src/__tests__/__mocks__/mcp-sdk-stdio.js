@@ -1,4 +1,5 @@
 // Mock for @modelcontextprotocol/sdk/server/stdio.js
+/* eslint-env node, jest */
 
 // Create global mock that can be accessed from tests
 global.mockTransportInstance = {

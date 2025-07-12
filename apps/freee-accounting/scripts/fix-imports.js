@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-env node */
 
 import fs from 'fs';
 import path from 'path';
@@ -49,7 +50,7 @@ function fixImports(filePath) {
   
   // Also fix dynamic imports
   const fullyFixedContent = fixedContent.replace(
-    /import\s*\(\s*['"](\.[^'"]*?)['"][\s\)]/g,
+    /import\s*\(\s*['"](\.[^'"]*?)['"][\s)]/g,
     (match, importPath) => {
       // Skip if already has extension
       if (importPath.endsWith('.js') || importPath.endsWith('.json')) {

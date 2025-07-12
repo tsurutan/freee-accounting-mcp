@@ -2,6 +2,7 @@
  * Mock for @modelcontextprotocol/sdk/types.js
  * Used to resolve ES module import issues in Jest tests
  */
+/* eslint-env node */
 
 // Mock schema objects that are used by the MCP server
 const CallToolRequestSchema = {
