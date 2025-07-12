@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "lint": "echo 'Linting temporarily disabled for release v1.0.3'",
+    "lint": "eslint .",
     "prepublishOnly": "npm run clean && npm run build && npm run test",
     "debug": "npx @modelcontextprotocol/inspector tsx src/index.ts",
     "debug:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",

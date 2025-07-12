@@ -12,7 +12,6 @@ import {
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { Logger } from 'winston';
 import { TYPES } from '../container/types.js';
 import { ResourceRegistry } from '../handlers/resource-registry.js';
 import { ToolRegistry } from '../handlers/tool-registry.js';
@@ -23,7 +22,7 @@ import { ToolRegistry } from '../handlers/tool-registry.js';
 @injectable()
 export class RequestHandlers {
   constructor(
-    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.Logger) private readonly logger: any,
     @inject(TYPES.ResourceRegistry) private readonly resourceRegistry: ResourceRegistry,
     @inject(TYPES.ToolRegistry) private readonly toolRegistry: ToolRegistry
   ) {}

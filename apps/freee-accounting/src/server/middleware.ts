@@ -3,7 +3,6 @@
  */
 
 import { injectable, inject } from 'inversify';
-import { Logger } from 'winston';
 import { TYPES } from '../container/types.js';
 import { EnvironmentConfig } from '../config/environment-config.js';
 import { ErrorHandler } from '../utils/error-handler.js';
@@ -33,7 +32,7 @@ export interface ResponseInfo {
 @injectable()
 export class Middleware {
   constructor(
-    @inject(TYPES.Logger) private readonly logger: Logger,
+    @inject(TYPES.Logger) private readonly logger: any,
     @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
     @inject(TYPES.ErrorHandler) private readonly errorHandler: ErrorHandler
   ) {}
