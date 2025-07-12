@@ -19,4 +19,7 @@ module.exports = {
       },
     },
   ],
+  rules: {
+    '@typescript-eslint/no-base-to-string': 'warn',
+  },
 };
