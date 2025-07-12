@@ -78,7 +78,7 @@ async function main(): Promise<void> {
 
 // エラーハンドリング
 process.on('unhandledRejection', (reason, promise) => {
-  mcpLogger.error(`Unhandled Rejection at promise: ${String(promise)} reason: ${String(reason)}`);
+  mcpLogger.error(`Unhandled Rejection at promise - reason: ${String(reason)}`);
   process.exit(1);
 });
 

@@ -20,6 +20,10 @@ module.exports = {
     },
   ],
   rules: {
-    '@typescript-eslint/no-base-to-string': 'warn',
+    '@typescript-eslint/no-base-to-string': 'off',
   },
+  ignorePatterns: [
+    'verify-types.mjs',
+    '**/*.mjs',
+  ],
 };

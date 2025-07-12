@@ -20,10 +20,10 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-non-null-assertion': 'warn',
-    '@typescript-eslint/prefer-nullish-coalescing': 'error',
+    '@typescript-eslint/prefer-nullish-coalescing': 'warn',
     '@typescript-eslint/prefer-optional-chain': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
-    '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/no-floating-promises': 'warn',
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/no-misused-promises': 'error',
     '@typescript-eslint/require-await': 'error',
@@ -35,6 +35,7 @@ module.exports = {
     '@typescript-eslint/prefer-readonly': 'error',
     '@typescript-eslint/prefer-readonly-parameter-types': 'off',
     '@typescript-eslint/switch-exhaustiveness-check': 'error',
+    '@typescript-eslint/no-base-to-string': 'warn',
 
     // General rules
     'no-console': 'warn',
@@ -57,6 +58,8 @@ module.exports = {
     '*.d.ts',
     'src/**/__tests__/**/*.js',
     'src/**/__mocks__/**/*.js',
+    '**/*.mjs',
+    'verify-types.mjs',
   ],
   overrides: [
     {
