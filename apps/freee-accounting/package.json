@@ -1,6 +1,6 @@
 {
   "name": "@tsurutan/freee-accounting-mcp",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "MCP Server for freee accounting API integration with Claude AI",
   "type": "module",
   "main": "dist/index.js",
