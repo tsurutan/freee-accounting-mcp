@@ -36,8 +36,21 @@ const config = {
     '^@modelcontextprotocol/sdk/types.js$': '<rootDir>/src/__tests__/__mocks__/mcp-sdk-types.js',
     '^@mcp-server/shared$': '<rootDir>/../../packages/shared/src/index.ts',
     '^@mcp-server/types$': '<rootDir>/../../packages/types/src/index.ts',
+    '^mcp-framework$': '<rootDir>/../../jest-mocks/mcp-framework.js',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  // Timer management and cleanup
+  fakeTimers: {
+    enableGlobally: false,
+  },
+  // Force exit after tests complete
+  forceExit: true,
+  // Detect open handles to help debug hanging issues
+  detectOpenHandles: true,
+  // Ensure tests exit cleanly
+  clearMocks: true,
+  restoreMocks: true,
 };
 
 module.exports = config;

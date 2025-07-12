@@ -4,15 +4,29 @@
 
 import { FreeeOAuthClient } from '../auth';
 import { OAuthConfig } from '@mcp-server/types';
+import * as fs from 'fs';
 
 // axios をモック
 jest.mock('axios');
 
+// fs をモック
+jest.mock('fs');
+
 describe('FreeeOAuthClient', () => {
   let oauthClient: FreeeOAuthClient;
   let config: OAuthConfig;
+  const mockedFs = fs as jest.Mocked<typeof fs>;
 
   beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
+    
+    // Mock fs methods to return false (no token file exists)
+    jest.mocked(fs.existsSync).mockReturnValue(false);
+    jest.mocked(fs.readFileSync).mockReturnValue('');
+    jest.mocked(fs.writeFileSync).mockImplementation(() => {});
+    jest.mocked(fs.unlinkSync).mockImplementation(() => {});
+    
     config = {
       clientId: 'test_client_id',
       clientSecret: 'test_client_secret',

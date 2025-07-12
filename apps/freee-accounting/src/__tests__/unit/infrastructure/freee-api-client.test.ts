@@ -33,6 +33,7 @@ const mockOAuthClient = {
   getCompanyId: jest.fn(),
   getExternalCid: jest.fn(),
   isCompanySelectionEnabled: jest.fn(),
+  isTokenValid: jest.fn().mockReturnValue(true),
 };
 
 // Mock removed since we no longer use @mcp-server/shared
@@ -98,6 +99,10 @@ describe('FreeeApiClient', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Clean up container to prevent memory leaks
+    if (container) {
+      container.unbindAll();
+    }
   });
 
   describe('call', () => {

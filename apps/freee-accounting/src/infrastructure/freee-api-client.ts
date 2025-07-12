@@ -180,7 +180,7 @@ export class FreeeApiClient {
       if (process.env.DEBUG === 'true') {
         this.logger.debug('🔐 Starting authentication process', {
           authStartTime,
-          lastTokenSet: this.lastTokenSet ? this.lastTokenSet.substring(0, 20) + '...' + this.lastTokenSet.substring(-10) : null,
+          lastTokenSet: this.lastTokenSet ? `${this.lastTokenSet.substring(0, 20)  }...${  this.lastTokenSet.substring(-10)}` : null,
           oauthClientAvailable: !!this.envConfig.oauthClient
         });
       }
@@ -191,7 +191,7 @@ export class FreeeApiClient {
       if (process.env.DEBUG === 'true') {
         this.logger.debug('🔑 Token retrieved from OAuth client', {
           tokenLength: token.length,
-          tokenPreview: token.substring(0, 20) + '...' + token.substring(-10),
+          tokenPreview: `${token.substring(0, 20)  }...${  token.substring(-10)}`,
           isDuplicate: this.lastTokenSet === token,
           authDuration: Date.now() - authStartTime,
           isTokenValid: this.envConfig.oauthClient!.isTokenValid(),

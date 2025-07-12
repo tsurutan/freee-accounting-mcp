@@ -319,10 +319,31 @@ describe('DealToolHandler', () => {
     container.bind(TYPES.AppConfig).toConstantValue(mockAppConfig);
     container.bind(TYPES.DateUtils).toConstantValue(mockDateUtils);
     
+    // EnvironmentConfig のモック
+    const mockEnvironmentConfig = {
+      oauthConfig: {
+        baseUrl: 'https://api.freee.co.jp',
+        clientId: 'test-client-id',
+        clientSecret: 'test-client-secret',
+        redirectUri: 'http://localhost:3000/callback',
+      },
+      companyId: 2067140,
+      baseUrl: 'https://api.freee.co.jp',
+      useOAuth: true,
+    };
+    container.bind(TYPES.EnvironmentConfig).toConstantValue(mockEnvironmentConfig);
+    
     // テスト対象
     container.bind(DealToolHandler).toSelf();
     
     dealToolHandler = container.get(DealToolHandler);
+  });
+
+  afterEach(() => {
+    // Clean up container to prevent memory leaks
+    if (container) {
+      container.unbindAll();
+    }
   });
 
   describe('getToolInfo', () => {

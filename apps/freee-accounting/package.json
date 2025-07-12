@@ -23,6 +23,8 @@
     "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "dependencies": {
+    "@mcp-server/shared": "*",
+    "@mcp-server/types": "*",
     "@modelcontextprotocol/sdk": "^0.4.0",
     "axios": "^1.6.0",
     "class-transformer": "^0.5.1",

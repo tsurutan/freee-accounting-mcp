@@ -114,10 +114,10 @@ export class AuthService implements IAuthService {
 
     if (!this.envConfig.oauthClient) {
       const authError = this.errorHandler.authError(
-        'OAuthクライアントの初期化に失敗しました。環境変数を確認してください:\n' +
-        '- FREEE_CLIENT_ID: ' + (process.env.FREEE_CLIENT_ID ? '✓ 設定済み' : '❌ 未設定') + '\n' +
-        '- FREEE_CLIENT_SECRET: ' + (process.env.FREEE_CLIENT_SECRET ? '✓ 設定済み' : '❌ 未設定') + '\n' +
-        '- FREEE_REDIRECT_URI: ' + (process.env.FREEE_REDIRECT_URI ? '✓ 設定済み' : '❌ 未設定')
+        `OAuthクライアントの初期化に失敗しました。環境変数を確認してください:\n` +
+        `- FREEE_CLIENT_ID: ${  process.env.FREEE_CLIENT_ID ? '✓ 設定済み' : '❌ 未設定'  }\n` +
+        `- FREEE_CLIENT_SECRET: ${  process.env.FREEE_CLIENT_SECRET ? '✓ 設定済み' : '❌ 未設定'  }\n` +
+        `- FREEE_REDIRECT_URI: ${  process.env.FREEE_REDIRECT_URI ? '✓ 設定済み' : '❌ 未設定'}`
       );
       this.logger.error('OAuth client initialization failed', {
         hasClientId: !!process.env.FREEE_CLIENT_ID,

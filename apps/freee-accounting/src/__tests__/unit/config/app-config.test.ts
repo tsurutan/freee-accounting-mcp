@@ -35,6 +35,10 @@ describe('AppConfig', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Clean up container to prevent memory leaks
+    if (container) {
+      container.unbindAll();
+    }
   });
 
   describe('constructor', () => {
