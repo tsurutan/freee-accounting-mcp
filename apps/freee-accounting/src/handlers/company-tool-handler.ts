@@ -8,6 +8,7 @@ import { TYPES } from '../container/types.js';
 import { BaseToolHandler, ToolInfo } from './base-tool-handler.js';
 import { AppError } from '../utils/error-handler.js';
 import { AppConfig } from '../config/app-config.js';
+import { EnvironmentConfig } from '../config/environment-config.js';
 import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { MCPToolResponse } from '../utils/response-builder.js';
 
@@ -23,6 +24,7 @@ export class CompanyToolHandler extends BaseToolHandler {
     @inject(TYPES.Logger) logger: any,
     @inject(TYPES.Validator) validator: any,
     @inject(TYPES.AppConfig) private readonly appConfig: AppConfig,
+    @inject(TYPES.EnvironmentConfig) private readonly envConfig: EnvironmentConfig,
     @inject(TYPES.FreeeClient) private readonly freeeClient: FreeeApiClient
   ) {
     super(authService, responseBuilder, errorHandler, logger, validator);
@@ -207,7 +209,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting current company info');
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const response = await this.freeeClient.get(`/api/1/companies/${companyId}`);
       if (response.isErr()) {
         throw response.error;
@@ -233,7 +236,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting account items', { args });
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const params: { company_id: number; base_date?: string } = { company_id: companyId };
 
       if (args.base_date) {
@@ -264,7 +268,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting partners', { args });
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const limit = args.limit || 100;
       const offset = args.offset || 0;
 
@@ -294,7 +299,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting sections');
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const sections = await this.freeeClient.getSections({
         company_id: companyId
       });
@@ -317,7 +323,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting items', { args });
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const limit = args.limit || 100;
       const offset = args.offset || 0;
 
@@ -347,7 +354,8 @@ export class CompanyToolHandler extends BaseToolHandler {
     return this.executeWithErrorHandling(async () => {
       this.logger.info('Getting tags');
 
-      const companyId = this.appConfig.companyId;
+      const oauthCompanyId = this.envConfig.oauthClient?.getCompanyId();
+      const companyId = oauthCompanyId ? parseInt(oauthCompanyId, 10) : this.appConfig.companyId;
       const tags = await this.freeeClient.getTags({
         company_id: companyId
       });
