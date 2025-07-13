@@ -505,10 +505,14 @@ export class DealToolHandler extends BaseToolHandler {
         throw validationResult.error;
       }
 
-      // 取引明細の貸借バランス検証
-      const balanceValidation = this.validator.validateDealBalance(createDealDto.details);
-      if (balanceValidation.isErr()) {
-        throw balanceValidation.error;
+      // freee API仕様では貸借バランス検証は不要（APIレベルで処理される）
+      // 旧来のentry_sideを使用する場合のみバランス検証を実行
+      const hasEntrySide = createDealDto.details.some(detail => detail.entry_side !== undefined);
+      if (hasEntrySide) {
+        const balanceValidation = this.validator.validateDealBalance(createDealDto.details);
+        if (balanceValidation.isErr()) {
+          throw balanceValidation.error;
+        }
       }
 
       // 事業所IDを取得（OAuthトークンから、または設定ファイルから）
@@ -558,11 +562,14 @@ export class DealToolHandler extends BaseToolHandler {
         throw validationResult.error;
       }
 
-      // 取引明細がある場合は貸借バランス検証
+      // 取引明細がある場合で、entry_sideを使用する場合のみ貸借バランス検証
       if (updateDealDto.details && updateDealDto.details.length > 0) {
-        const balanceValidation = this.validator.validateDealBalance(updateDealDto.details);
-        if (balanceValidation.isErr()) {
-          throw balanceValidation.error;
+        const hasEntrySide = updateDealDto.details.some(detail => detail.entry_side !== undefined);
+        if (hasEntrySide) {
+          const balanceValidation = this.validator.validateDealBalance(updateDealDto.details);
+          if (balanceValidation.isErr()) {
+            throw balanceValidation.error;
+          }
         }
       }
 
