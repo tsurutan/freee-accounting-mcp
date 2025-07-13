@@ -12,6 +12,7 @@ import { EnvironmentConfig } from '../config/environment-config.js';
 import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { DateUtils } from '../utils/date-utils.js';
 import { CreateDealDto, UpdateDealDto, GetDealsDto, PaymentDetailDto } from '../utils/validator.js';
+import { plainToInstance } from 'class-transformer';
 import { MCPToolResponse } from '../utils/response-builder.js';
 
 /**
@@ -497,8 +498,7 @@ export class DealToolHandler extends BaseToolHandler {
       this.logger.info('Creating deal', { args });
 
       // DTOの作成と検証
-      const createDealDto = new CreateDealDto();
-      Object.assign(createDealDto, args);
+      const createDealDto = plainToInstance(CreateDealDto, args);
 
       const validationResult = await this.validator.validateDto(createDealDto);
       if (validationResult.isErr()) {
@@ -554,8 +554,7 @@ export class DealToolHandler extends BaseToolHandler {
       this.logger.info('Updating deal', { dealId: args.deal_id });
 
       // DTOの作成と検証
-      const updateDealDto = new UpdateDealDto();
-      Object.assign(updateDealDto, args);
+      const updateDealDto = plainToInstance(UpdateDealDto, args);
 
       const validationResult = await this.validator.validateDto(updateDealDto);
       if (validationResult.isErr()) {
