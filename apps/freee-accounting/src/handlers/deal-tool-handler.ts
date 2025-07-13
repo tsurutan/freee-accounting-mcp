@@ -140,8 +140,8 @@ export class DealToolHandler extends BaseToolHandler {
                   },
                   amount: {
                     type: 'number',
-                    minimum: -9223372036854776000,
-                    maximum: 9223372036854776000,
+                    minimum: -9007199254740991,
+                    maximum: 9007199254740991,
                     description: '取引金額（税込、必須）。マイナス値は控除・マイナス行として登録',
                   },
                   item_id: {
@@ -217,8 +217,8 @@ export class DealToolHandler extends BaseToolHandler {
                 properties: {
                   amount: {
                     type: 'number',
-                    minimum: -9223372036854776000,
-                    maximum: 9223372036854776000,
+                    minimum: -9007199254740991,
+                    maximum: 9007199254740991,
                     description: '支払金額（必須）',
                   },
                   from_walletable_id: {
