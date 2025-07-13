@@ -3,7 +3,23 @@
  */
 
 import 'reflect-metadata';
-import { Validator, CreateDealDto, DealDetailDto } from '../../../utils/validator.js';
+import { 
+  Validator, 
+  CreateDealDto, 
+  DealDetailDto,
+  CreateInvoiceDto,
+  InvoiceContentDto,
+  UpdateInvoiceDto,
+  GetInvoicesDto,
+  CreateQuotationDto,
+  QuotationContentDto,
+  UpdateQuotationDto,
+  GetQuotationsDto,
+  CreateDeliverySlipDto,
+  DeliverySlipContentDto,
+  UpdateDeliverySlipDto,
+  GetDeliverySlipsDto
+} from '../../../utils/validator.js';
 
 describe('Validator', () => {
   let validator: Validator;
@@ -389,6 +405,308 @@ describe('Validator', () => {
         expect(result.error.type).toBe('VALIDATION_ERROR');
         expect(result.error.message).toBe('日付はYYYY-MM-DD形式で入力してください');
       }
+    });
+  });
+
+  describe('Invoice DTOs', () => {
+    describe('InvoiceContentDto', () => {
+      it('有効なInvoiceContentDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new InvoiceContentDto();
+        dto.order = 1;
+        dto.type = 'normal';
+        dto.description = 'テストサービス';
+        dto.qty = 1;
+        dto.unit_price = 100000;
+        dto.amount = 100000;
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+
+      it('無効なtypeを持つInvoiceContentDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new InvoiceContentDto();
+        dto.order = 1;
+        dto.type = 'invalid' as any;
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.type).toBe('VALIDATION_ERROR');
+          expect(result.error.message).toContain('type');
+        }
+      });
+    });
+
+    describe('CreateInvoiceDto', () => {
+      it('有効なCreateInvoiceDtoを正しく検証する', async () => {
+        // Arrange
+        const content = new InvoiceContentDto();
+        content.order = 1;
+        content.type = 'normal';
+        content.description = 'テストサービス';
+        content.amount = 100000;
+
+        const dto = new CreateInvoiceDto();
+        dto.due_date = '2024-02-15';
+        dto.invoice_contents = [content];
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+
+      it('due_dateが不足するCreateInvoiceDtoを正しく検証する', async () => {
+        // Arrange
+        const content = new InvoiceContentDto();
+        content.order = 1;
+        content.type = 'normal';
+
+        const dto = new CreateInvoiceDto();
+        dto.invoice_contents = [content];
+        // due_date is missing
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.type).toBe('VALIDATION_ERROR');
+          expect(result.error.message).toContain('due_date');
+        }
+      });
+    });
+
+    describe('UpdateInvoiceDto', () => {
+      it('有効なUpdateInvoiceDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new UpdateInvoiceDto();
+        dto.invoice_id = 1;
+        dto.title = '更新されたタイトル';
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+
+      it('invoice_idが不足するUpdateInvoiceDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new UpdateInvoiceDto();
+        dto.title = 'タイトル';
+        // invoice_id is missing
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.type).toBe('VALIDATION_ERROR');
+          expect(result.error.message).toContain('invoice_id');
+        }
+      });
+    });
+
+    describe('GetInvoicesDto', () => {
+      it('有効なGetInvoicesDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new GetInvoicesDto();
+        dto.partner_id = 1;
+        dto.invoice_status = 'issued';
+        dto.limit = 50;
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+    });
+  });
+
+  describe('Quotation DTOs', () => {
+    describe('QuotationContentDto', () => {
+      it('有効なQuotationContentDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new QuotationContentDto();
+        dto.order = 1;
+        dto.type = 'normal';
+        dto.description = 'テストサービス';
+        dto.qty = 1;
+        dto.unit_price = 100000;
+        dto.amount = 100000;
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+    });
+
+    describe('CreateQuotationDto', () => {
+      it('有効なCreateQuotationDtoを正しく検証する', async () => {
+        // Arrange
+        const content = new QuotationContentDto();
+        content.order = 1;
+        content.type = 'normal';
+        content.description = 'テストサービス';
+        content.amount = 100000;
+
+        const dto = new CreateQuotationDto();
+        dto.quotation_contents = [content];
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+
+      it('quotation_contentsが不足するCreateQuotationDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new CreateQuotationDto();
+        // quotation_contents is missing
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.type).toBe('VALIDATION_ERROR');
+          expect(result.error.message).toContain('quotation_contents');
+        }
+      });
+    });
+
+    describe('UpdateQuotationDto', () => {
+      it('有効なUpdateQuotationDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new UpdateQuotationDto();
+        dto.quotation_id = 1;
+        dto.title = '更新されたタイトル';
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+    });
+  });
+
+  describe('DeliverySlip DTOs', () => {
+    describe('DeliverySlipContentDto', () => {
+      it('有効なDeliverySlipContentDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new DeliverySlipContentDto();
+        dto.order = 1;
+        dto.type = 'normal';
+        dto.description = 'テスト商品';
+        dto.qty = 1;
+        dto.unit_price = 100000;
+        dto.amount = 100000;
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+    });
+
+    describe('CreateDeliverySlipDto', () => {
+      it('有効なCreateDeliverySlipDtoを正しく検証する', async () => {
+        // Arrange
+        const content = new DeliverySlipContentDto();
+        content.order = 1;
+        content.type = 'normal';
+        content.description = 'テスト商品';
+        content.amount = 100000;
+
+        const dto = new CreateDeliverySlipDto();
+        dto.delivery_slip_contents = [content];
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
+
+      it('delivery_slip_contentsが不足するCreateDeliverySlipDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new CreateDeliverySlipDto();
+        // delivery_slip_contents is missing
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.type).toBe('VALIDATION_ERROR');
+          expect(result.error.message).toContain('delivery_slip_contents');
+        }
+      });
+    });
+
+    describe('UpdateDeliverySlipDto', () => {
+      it('有効なUpdateDeliverySlipDtoを正しく検証する', async () => {
+        // Arrange
+        const dto = new UpdateDeliverySlipDto();
+        dto.delivery_slip_id = 1;
+        dto.title = '更新されたタイトル';
+
+        // Act
+        const result = await validator.validateDto(dto);
+
+        // Assert
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toEqual(dto);
+        }
+      });
     });
   });
 });

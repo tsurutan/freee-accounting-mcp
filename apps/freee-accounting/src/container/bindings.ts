@@ -33,6 +33,9 @@ import { AuthToolHandler } from '../handlers/auth-tool-handler.js';
 import { DealToolHandler } from '../handlers/deal-tool-handler.js';
 import { CompanyToolHandler } from '../handlers/company-tool-handler.js';
 import { SystemToolHandler } from '../handlers/system-tool-handler.js';
+import { InvoiceToolHandler } from '../handlers/invoice-tool-handler.js';
+import { QuotationToolHandler } from '../handlers/quotation-tool-handler.js';
+import { DeliverySlipToolHandler } from '../handlers/delivery-slip-tool-handler.js';
 import { ToolRegistry } from '../handlers/tool-registry.js';
 
 // サーバー
@@ -138,6 +141,9 @@ function configureHandlerBindings(container: Container): void {
   container.bind(TYPES.DealToolHandler).to(DealToolHandler).inSingletonScope();
   container.bind(TYPES.CompanyToolHandler).to(CompanyToolHandler).inSingletonScope();
   container.bind(TYPES.SystemToolHandler).to(SystemToolHandler).inSingletonScope();
+  container.bind(TYPES.InvoiceToolHandler).to(InvoiceToolHandler).inSingletonScope();
+  container.bind(TYPES.QuotationToolHandler).to(QuotationToolHandler).inSingletonScope();
+  container.bind(TYPES.DeliverySlipToolHandler).to(DeliverySlipToolHandler).inSingletonScope();
   container.bind(TYPES.ToolRegistry).to(ToolRegistry).inSingletonScope();
 }
 

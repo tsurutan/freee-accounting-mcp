@@ -258,4 +258,86 @@ ${JSON.stringify(metricsData, null, 2)}`;
 
 使用率: ${usageRate}%`;
   }
+
+  /**
+   * 請求書データのフォーマット
+   */
+  formatInvoicesResponse(invoices: any[], companyId: number, filters: any = {}): string {
+    if (invoices.length === 0) {
+      return `請求書データがありません。\n\n事業所ID: ${companyId}\nフィルター: ${JSON.stringify(filters)}`;
+    }
+
+    const summary = `請求書一覧を取得しました。
+
+事業所ID: ${companyId}
+取得件数: ${invoices.length}件
+
+請求書一覧:`;
+
+    const invoiceList = invoices.map(invoice => {
+      const issueDate = invoice.issue_date || 'N/A';
+      const dueDate = invoice.due_date || 'N/A';
+      const status = invoice.invoice_status || 'N/A';
+      const amount = invoice.total_amount_with_vat ? `¥${invoice.total_amount_with_vat.toLocaleString()}` : 'N/A';
+      const partner = invoice.partner_name || 'N/A';
+      
+      return `- ID: ${invoice.id} | 番号: ${invoice.invoice_number || 'N/A'} | 取引先: ${partner} | 請求日: ${issueDate} | 期日: ${dueDate} | 金額: ${amount} | ステータス: ${status}`;
+    }).join('\n');
+
+    return `${summary}\n${invoiceList}`;
+  }
+
+  /**
+   * 見積書データのフォーマット
+   */
+  formatQuotationsResponse(quotations: any[], companyId: number, filters: any = {}): string {
+    if (quotations.length === 0) {
+      return `見積書データがありません。\n\n事業所ID: ${companyId}\nフィルター: ${JSON.stringify(filters)}`;
+    }
+
+    const summary = `見積書一覧を取得しました。
+
+事業所ID: ${companyId}
+取得件数: ${quotations.length}件
+
+見積書一覧:`;
+
+    const quotationList = quotations.map(quotation => {
+      const quotationDate = quotation.quotation_date || 'N/A';
+      const status = quotation.quotation_status || 'N/A';
+      const amount = quotation.total_amount_with_vat ? `¥${quotation.total_amount_with_vat.toLocaleString()}` : 'N/A';
+      const partner = quotation.partner_name || 'N/A';
+      
+      return `- ID: ${quotation.id} | 番号: ${quotation.quotation_number || 'N/A'} | 取引先: ${partner} | 見積日: ${quotationDate} | 金額: ${amount} | ステータス: ${status}`;
+    }).join('\n');
+
+    return `${summary}\n${quotationList}`;
+  }
+
+  /**
+   * 納品書データのフォーマット
+   */
+  formatDeliverySlipsResponse(deliverySlips: any[], companyId: number, filters: any = {}): string {
+    if (deliverySlips.length === 0) {
+      return `納品書データがありません。\n\n事業所ID: ${companyId}\nフィルター: ${JSON.stringify(filters)}`;
+    }
+
+    const summary = `納品書一覧を取得しました。
+
+事業所ID: ${companyId}
+取得件数: ${deliverySlips.length}件
+
+納品書一覧:`;
+
+    const deliverySlipList = deliverySlips.map(deliverySlip => {
+      const deliveryDate = deliverySlip.delivery_date || 'N/A';
+      const status = deliverySlip.delivery_slip_status || 'N/A';
+      const amount = deliverySlip.total_amount_with_vat ? `¥${deliverySlip.total_amount_with_vat.toLocaleString()}` : 'N/A';
+      const partner = deliverySlip.partner_name || 'N/A';
+      
+      return `- ID: ${deliverySlip.id} | 番号: ${deliverySlip.delivery_slip_number || 'N/A'} | 取引先: ${partner} | 納品日: ${deliveryDate} | 金額: ${amount} | ステータス: ${status}`;
+    }).join('\n');
+
+    return `${summary}\n${deliverySlipList}`;
+  }
 }

@@ -167,6 +167,683 @@ export class GetDealsDto {
 }
 
 /**
+ * 請求書内容のDTO
+ */
+export class InvoiceContentDto {
+  @IsNumber()
+  order!: number;
+
+  @IsEnum(['normal', 'discount', 'text'])
+  type!: 'normal' | 'discount' | 'text';
+
+  @IsOptional()
+  @IsNumber()
+  qty?: number;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  unit_price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  vat?: number;
+
+  @IsOptional()
+  reduced_vat?: boolean;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  account_item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  tax_code?: number;
+
+  @IsOptional()
+  @IsNumber()
+  item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  section_id?: number;
+
+  @IsOptional()
+  @IsArray()
+  tag_ids?: number[];
+
+  @IsOptional()
+  @IsNumber()
+  segment_1_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_2_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_3_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+}
+
+/**
+ * 請求書作成のDTO
+ */
+export class CreateInvoiceDto {
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  invoice_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsDateString()
+  due_date!: string;
+
+  @IsOptional()
+  @IsDateString()
+  issue_date?: string;
+
+  @IsOptional()
+  @IsEnum(['transfer', 'direct_debit'])
+  payment_type?: 'transfer' | 'direct_debit';
+
+  @IsOptional()
+  @IsEnum(['not_use', 'use'])
+  use_virtual_transfer_account?: 'not_use' | 'use';
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'carried_forward_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  invoice_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'carried_forward_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => InvoiceContentDto)
+  invoice_contents!: InvoiceContentDto[];
+}
+
+/**
+ * 請求書更新のDTO
+ */
+export class UpdateInvoiceDto {
+  @IsNumber()
+  invoice_id!: number;
+
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  invoice_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  due_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  issue_date?: string;
+
+  @IsOptional()
+  @IsEnum(['transfer', 'direct_debit'])
+  payment_type?: 'transfer' | 'direct_debit';
+
+  @IsOptional()
+  @IsEnum(['not_use', 'use'])
+  use_virtual_transfer_account?: 'not_use' | 'use';
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'carried_forward_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  invoice_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'carried_forward_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => InvoiceContentDto)
+  invoice_contents?: InvoiceContentDto[];
+}
+
+/**
+ * 請求書一覧取得のDTO
+ */
+export class GetInvoicesDto {
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_issue_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_issue_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_due_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_due_date?: string;
+
+  @IsOptional()
+  @IsString()
+  invoice_number?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(['draft', 'applying', 'remanded', 'rejected', 'approved', 'issued', 'sending', 'sent', 'delivered', 'paid'])
+  invoice_status?: 'draft' | 'applying' | 'remanded' | 'rejected' | 'approved' | 'issued' | 'sending' | 'sent' | 'delivered' | 'paid';
+
+  @IsOptional()
+  @IsEnum(['unsettled', 'settled'])
+  payment_status?: 'unsettled' | 'settled';
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  limit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  offset?: number;
+}
+
+/**
+ * 見積書内容のDTO
+ */
+export class QuotationContentDto {
+  @IsNumber()
+  order!: number;
+
+  @IsEnum(['normal', 'discount', 'text'])
+  type!: 'normal' | 'discount' | 'text';
+
+  @IsOptional()
+  @IsNumber()
+  qty?: number;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  unit_price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  vat?: number;
+
+  @IsOptional()
+  reduced_vat?: boolean;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  account_item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  tax_code?: number;
+
+  @IsOptional()
+  @IsNumber()
+  item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  section_id?: number;
+
+  @IsOptional()
+  @IsArray()
+  tag_ids?: number[];
+
+  @IsOptional()
+  @IsNumber()
+  segment_1_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_2_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_3_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+}
+
+/**
+ * 見積書作成のDTO
+ */
+export class CreateQuotationDto {
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  quotation_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  quotation_date?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  quotation_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuotationContentDto)
+  quotation_contents!: QuotationContentDto[];
+}
+
+/**
+ * 見積書更新のDTO
+ */
+export class UpdateQuotationDto {
+  @IsNumber()
+  quotation_id!: number;
+
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  quotation_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  quotation_date?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  quotation_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuotationContentDto)
+  quotation_contents?: QuotationContentDto[];
+}
+
+/**
+ * 見積書一覧取得のDTO
+ */
+export class GetQuotationsDto {
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_issue_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_issue_date?: string;
+
+  @IsOptional()
+  @IsString()
+  quotation_number?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(['draft', 'applying', 'remanded', 'rejected', 'approved', 'issued'])
+  quotation_status?: 'draft' | 'applying' | 'remanded' | 'rejected' | 'approved' | 'issued';
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  limit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  offset?: number;
+}
+
+/**
+ * 納品書内容のDTO
+ */
+export class DeliverySlipContentDto {
+  @IsNumber()
+  order!: number;
+
+  @IsEnum(['normal', 'discount', 'text'])
+  type!: 'normal' | 'discount' | 'text';
+
+  @IsOptional()
+  @IsNumber()
+  qty?: number;
+
+  @IsOptional()
+  @IsString()
+  unit?: string;
+
+  @IsOptional()
+  @IsNumber()
+  unit_price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  vat?: number;
+
+  @IsOptional()
+  reduced_vat?: boolean;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsNumber()
+  account_item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  tax_code?: number;
+
+  @IsOptional()
+  @IsNumber()
+  item_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  section_id?: number;
+
+  @IsOptional()
+  @IsArray()
+  tag_ids?: number[];
+
+  @IsOptional()
+  @IsNumber()
+  segment_1_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_2_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  segment_3_tag_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+}
+
+/**
+ * 納品書作成のDTO
+ */
+export class CreateDeliverySlipDto {
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  delivery_slip_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  delivery_date?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  delivery_slip_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeliverySlipContentDto)
+  delivery_slip_contents!: DeliverySlipContentDto[];
+}
+
+/**
+ * 納品書更新のDTO
+ */
+export class UpdateDeliverySlipDto {
+  @IsNumber()
+  delivery_slip_id!: number;
+
+  @IsOptional()
+  @IsNumber()
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsString()
+  delivery_slip_number?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsDateString()
+  delivery_date?: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsEnum(['default_classic', 'standard_classic', 'envelope_classic', 'default_modern', 'standard_modern', 'envelope_modern'])
+  delivery_slip_layout?: 'default_classic' | 'standard_classic' | 'envelope_classic' | 'default_modern' | 'standard_modern' | 'envelope_modern';
+
+  @IsOptional()
+  @IsEnum(['inclusive', 'exclusive'])
+  tax_entry_method?: 'inclusive' | 'exclusive';
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeliverySlipContentDto)
+  delivery_slip_contents?: DeliverySlipContentDto[];
+}
+
+/**
+ * 納品書一覧取得のDTO
+ */
+export class GetDeliverySlipsDto {
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_issue_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_issue_date?: string;
+
+  @IsOptional()
+  @IsString()
+  delivery_slip_number?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsEnum(['draft', 'applying', 'remanded', 'rejected', 'approved', 'issued'])
+  delivery_slip_status?: 'draft' | 'applying' | 'remanded' | 'rejected' | 'approved' | 'issued';
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  limit?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Transform(({ value }) => parseInt(value))
+  offset?: number;
+}
+
+/**
  * バリデーションクラス
  */
 @injectable()

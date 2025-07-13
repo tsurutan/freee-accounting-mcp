@@ -9,6 +9,9 @@ import { AuthToolHandler } from './auth-tool-handler.js';
 import { DealToolHandler } from './deal-tool-handler.js';
 import { CompanyToolHandler } from './company-tool-handler.js';
 import { SystemToolHandler } from './system-tool-handler.js';
+import { InvoiceToolHandler } from './invoice-tool-handler.js';
+import { QuotationToolHandler } from './quotation-tool-handler.js';
+import { DeliverySlipToolHandler } from './delivery-slip-tool-handler.js';
 import { MCPToolResponse } from '../utils/response-builder.js';
 import { Logger } from '../infrastructure/logger.js';
 import { ErrorHandler } from '../utils/error-handler.js';
@@ -28,13 +31,19 @@ export class ToolRegistry {
     @inject(TYPES.AuthToolHandler) authHandler: AuthToolHandler,
     @inject(TYPES.DealToolHandler) dealHandler: DealToolHandler,
     @inject(TYPES.CompanyToolHandler) companyHandler: CompanyToolHandler,
-    @inject(TYPES.SystemToolHandler) systemHandler: SystemToolHandler
+    @inject(TYPES.SystemToolHandler) systemHandler: SystemToolHandler,
+    @inject(TYPES.InvoiceToolHandler) invoiceHandler: InvoiceToolHandler,
+    @inject(TYPES.QuotationToolHandler) quotationHandler: QuotationToolHandler,
+    @inject(TYPES.DeliverySlipToolHandler) deliverySlipHandler: DeliverySlipToolHandler
   ) {
     // ハンドラーを登録
     this.registerHandler(authHandler);
     this.registerHandler(dealHandler);
     this.registerHandler(companyHandler);
     this.registerHandler(systemHandler);
+    this.registerHandler(invoiceHandler);
+    this.registerHandler(quotationHandler);
+    this.registerHandler(deliverySlipHandler);
     
     this.logger.info('Tool registry initialized', {
       handlerCount: this.handlers.length,
@@ -182,6 +191,9 @@ export class ToolRegistry {
       '取引': [],
       '事業所': [],
       'システム': [],
+      '請求書': [],
+      '見積書': [],
+      '納品書': [],
     };
 
     for (const handler of this.handlers) {
@@ -196,6 +208,12 @@ export class ToolRegistry {
         categories['事業所']?.push(...tools);
       } else if (handlerName.includes('System')) {
         categories['システム']?.push(...tools);
+      } else if (handlerName.includes('Invoice')) {
+        categories['請求書']?.push(...tools);
+      } else if (handlerName.includes('Quotation')) {
+        categories['見積書']?.push(...tools);
+      } else if (handlerName.includes('DeliverySlip')) {
+        categories['納品書']?.push(...tools);
       }
     }
 

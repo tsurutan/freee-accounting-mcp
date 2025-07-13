@@ -1,6 +1,6 @@
 {
   "name": "@tsurutan/freee-accounting-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "MCP Server for freee accounting API integration with Claude AI",
   "type": "module",
   "main": "dist/index.js",
@@ -23,8 +23,6 @@
     "inspect:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "dependencies": {
-    "@mcp-server/shared": "*",
-    "@mcp-server/types": "*",
     "@modelcontextprotocol/sdk": "^0.4.0",
     "axios": "^1.6.0",
     "class-transformer": "^0.5.1",

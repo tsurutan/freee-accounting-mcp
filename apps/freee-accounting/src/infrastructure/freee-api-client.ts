@@ -713,4 +713,382 @@ export class FreeeApiClient {
       throw new Error(`Failed to get tags: ${result.error.message}`);
     }
   }
+
+  /**
+   * FreeeClient互換メソッド: 請求書一覧を取得
+   */
+  async getInvoices(params: {
+    company_id: number;
+    partner_id?: number;
+    partner_code?: string;
+    start_issue_date?: string;
+    end_issue_date?: string;
+    start_due_date?: string;
+    end_due_date?: string;
+    invoice_number?: string;
+    description?: string;
+    invoice_status?: string;
+    payment_status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ invoices: any[]; meta: { total_count: number } }> {
+    this.logger.info('FreeeApiClient.getInvoices called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.partner_id) searchParams.append('partner_id', params.partner_id.toString());
+    if (params.partner_code) searchParams.append('partner_code', params.partner_code);
+    if (params.start_issue_date) searchParams.append('start_issue_date', params.start_issue_date);
+    if (params.end_issue_date) searchParams.append('end_issue_date', params.end_issue_date);
+    if (params.start_due_date) searchParams.append('start_due_date', params.start_due_date);
+    if (params.end_due_date) searchParams.append('end_due_date', params.end_due_date);
+    if (params.invoice_number) searchParams.append('invoice_number', params.invoice_number);
+    if (params.description) searchParams.append('description', params.description);
+    if (params.invoice_status) searchParams.append('invoice_status', params.invoice_status);
+    if (params.payment_status) searchParams.append('payment_status', params.payment_status);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.offset) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/invoices?${searchParams.toString()}`, undefined, {
+      operation: 'get_invoices',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getInvoices success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+        data: result.value.data
+      });
+
+      if (result.value.data && typeof result.value.data === 'object' && 'invoices' in result.value.data) {
+        return result.value.data;
+      }
+
+      this.logger.error('Unexpected response format for invoices', { data: result.value.data });
+      throw new Error(`Unexpected response format: ${JSON.stringify(result.value.data)}`);
+    } else {
+      this.logger.error('FreeeApiClient.getInvoices failed', { error: result.error });
+      throw new Error(`Failed to get invoices: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 請求書詳細を取得
+   */
+  async getInvoiceDetails(invoiceId: number, companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getInvoiceDetails called', { invoiceId, companyId });
+
+    const result = await this.get(`/api/1/invoices/${invoiceId}?company_id=${companyId}`, undefined, {
+      operation: 'get_invoice_details',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getInvoiceDetails failed', { error: result.error });
+      throw new Error(`Failed to get invoice details: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 請求書を作成
+   */
+  async createInvoice(invoiceData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.createInvoice called', { invoiceData });
+
+    const result = await this.post('/api/1/invoices', invoiceData, undefined, {
+      operation: 'create_invoice',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.createInvoice failed', { error: result.error });
+      throw new Error(`Failed to create invoice: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 請求書を更新
+   */
+  async updateInvoice(invoiceId: number, invoiceData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.updateInvoice called', { invoiceId, invoiceData });
+
+    const result = await this.put(`/api/1/invoices/${invoiceId}`, invoiceData, undefined, {
+      operation: 'update_invoice',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.updateInvoice failed', { error: result.error });
+      throw new Error(`Failed to update invoice: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 請求書テンプレート一覧を取得
+   */
+  async getInvoiceTemplates(companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getInvoiceTemplates called', { companyId });
+
+    const result = await this.get(`/api/1/invoices/templates?company_id=${companyId}`, undefined, {
+      operation: 'get_invoice_templates',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getInvoiceTemplates failed', { error: result.error });
+      throw new Error(`Failed to get invoice templates: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 見積書一覧を取得
+   */
+  async getQuotations(params: {
+    company_id: number;
+    partner_id?: number;
+    partner_code?: string;
+    start_issue_date?: string;
+    end_issue_date?: string;
+    quotation_number?: string;
+    description?: string;
+    quotation_status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ quotations: any[]; meta: { total_count: number } }> {
+    this.logger.info('FreeeApiClient.getQuotations called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.partner_id) searchParams.append('partner_id', params.partner_id.toString());
+    if (params.partner_code) searchParams.append('partner_code', params.partner_code);
+    if (params.start_issue_date) searchParams.append('start_issue_date', params.start_issue_date);
+    if (params.end_issue_date) searchParams.append('end_issue_date', params.end_issue_date);
+    if (params.quotation_number) searchParams.append('quotation_number', params.quotation_number);
+    if (params.description) searchParams.append('description', params.description);
+    if (params.quotation_status) searchParams.append('quotation_status', params.quotation_status);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.offset) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/quotations?${searchParams.toString()}`, undefined, {
+      operation: 'get_quotations',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getQuotations success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+        data: result.value.data
+      });
+
+      if (result.value.data && typeof result.value.data === 'object' && 'quotations' in result.value.data) {
+        return result.value.data;
+      }
+
+      this.logger.error('Unexpected response format for quotations', { data: result.value.data });
+      throw new Error(`Unexpected response format: ${JSON.stringify(result.value.data)}`);
+    } else {
+      this.logger.error('FreeeApiClient.getQuotations failed', { error: result.error });
+      throw new Error(`Failed to get quotations: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 見積書詳細を取得
+   */
+  async getQuotationDetails(quotationId: number, companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getQuotationDetails called', { quotationId, companyId });
+
+    const result = await this.get(`/api/1/quotations/${quotationId}?company_id=${companyId}`, undefined, {
+      operation: 'get_quotation_details',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getQuotationDetails failed', { error: result.error });
+      throw new Error(`Failed to get quotation details: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 見積書を作成
+   */
+  async createQuotation(quotationData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.createQuotation called', { quotationData });
+
+    const result = await this.post('/api/1/quotations', quotationData, undefined, {
+      operation: 'create_quotation',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.createQuotation failed', { error: result.error });
+      throw new Error(`Failed to create quotation: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 見積書を更新
+   */
+  async updateQuotation(quotationId: number, quotationData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.updateQuotation called', { quotationId, quotationData });
+
+    const result = await this.put(`/api/1/quotations/${quotationId}`, quotationData, undefined, {
+      operation: 'update_quotation',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.updateQuotation failed', { error: result.error });
+      throw new Error(`Failed to update quotation: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 見積書テンプレート一覧を取得
+   */
+  async getQuotationTemplates(companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getQuotationTemplates called', { companyId });
+
+    const result = await this.get(`/api/1/quotations/templates?company_id=${companyId}`, undefined, {
+      operation: 'get_quotation_templates',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getQuotationTemplates failed', { error: result.error });
+      throw new Error(`Failed to get quotation templates: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 納品書一覧を取得
+   */
+  async getDeliverySlips(params: {
+    company_id: number;
+    partner_id?: number;
+    partner_code?: string;
+    start_issue_date?: string;
+    end_issue_date?: string;
+    delivery_slip_number?: string;
+    description?: string;
+    delivery_slip_status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ delivery_slips: any[]; meta: { total_count: number } }> {
+    this.logger.info('FreeeApiClient.getDeliverySlips called', { params });
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('company_id', params.company_id.toString());
+    if (params.partner_id) searchParams.append('partner_id', params.partner_id.toString());
+    if (params.partner_code) searchParams.append('partner_code', params.partner_code);
+    if (params.start_issue_date) searchParams.append('start_issue_date', params.start_issue_date);
+    if (params.end_issue_date) searchParams.append('end_issue_date', params.end_issue_date);
+    if (params.delivery_slip_number) searchParams.append('delivery_slip_number', params.delivery_slip_number);
+    if (params.description) searchParams.append('description', params.description);
+    if (params.delivery_slip_status) searchParams.append('delivery_slip_status', params.delivery_slip_status);
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.offset) searchParams.append('offset', params.offset.toString());
+
+    const result = await this.get(`/api/1/delivery_slips?${searchParams.toString()}`, undefined, {
+      operation: 'get_delivery_slips',
+    });
+
+    if (result.isOk()) {
+      this.logger.info('FreeeApiClient.getDeliverySlips success', {
+        dataType: typeof result.value.data,
+        dataKeys: result.value.data ? Object.keys(result.value.data) : 'null',
+        data: result.value.data
+      });
+
+      if (result.value.data && typeof result.value.data === 'object' && 'delivery_slips' in result.value.data) {
+        return result.value.data;
+      }
+
+      this.logger.error('Unexpected response format for delivery slips', { data: result.value.data });
+      throw new Error(`Unexpected response format: ${JSON.stringify(result.value.data)}`);
+    } else {
+      this.logger.error('FreeeApiClient.getDeliverySlips failed', { error: result.error });
+      throw new Error(`Failed to get delivery slips: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 納品書詳細を取得
+   */
+  async getDeliverySlipDetails(deliverySlipId: number, companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getDeliverySlipDetails called', { deliverySlipId, companyId });
+
+    const result = await this.get(`/api/1/delivery_slips/${deliverySlipId}?company_id=${companyId}`, undefined, {
+      operation: 'get_delivery_slip_details',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getDeliverySlipDetails failed', { error: result.error });
+      throw new Error(`Failed to get delivery slip details: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 納品書を作成
+   */
+  async createDeliverySlip(deliverySlipData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.createDeliverySlip called', { deliverySlipData });
+
+    const result = await this.post('/api/1/delivery_slips', deliverySlipData, undefined, {
+      operation: 'create_delivery_slip',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.createDeliverySlip failed', { error: result.error });
+      throw new Error(`Failed to create delivery slip: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 納品書を更新
+   */
+  async updateDeliverySlip(deliverySlipId: number, deliverySlipData: any): Promise<any> {
+    this.logger.info('FreeeApiClient.updateDeliverySlip called', { deliverySlipId, deliverySlipData });
+
+    const result = await this.put(`/api/1/delivery_slips/${deliverySlipId}`, deliverySlipData, undefined, {
+      operation: 'update_delivery_slip',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.updateDeliverySlip failed', { error: result.error });
+      throw new Error(`Failed to update delivery slip: ${result.error.message}`);
+    }
+  }
+
+  /**
+   * FreeeClient互換メソッド: 納品書テンプレート一覧を取得
+   */
+  async getDeliverySlipTemplates(companyId: number): Promise<any> {
+    this.logger.info('FreeeApiClient.getDeliverySlipTemplates called', { companyId });
+
+    const result = await this.get(`/api/1/delivery_slips/templates?company_id=${companyId}`, undefined, {
+      operation: 'get_delivery_slip_templates',
+    });
+
+    if (result.isOk()) {
+      return result.value.data;
+    } else {
+      this.logger.error('FreeeApiClient.getDeliverySlipTemplates failed', { error: result.error });
+      throw new Error(`Failed to get delivery slip templates: ${result.error.message}`);
+    }
+  }
 }

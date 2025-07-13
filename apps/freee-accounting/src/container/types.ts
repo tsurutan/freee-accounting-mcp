@@ -35,6 +35,9 @@ export const TYPES = {
   DealToolHandler: Symbol.for('DealToolHandler'),
   CompanyToolHandler: Symbol.for('CompanyToolHandler'),
   SystemToolHandler: Symbol.for('SystemToolHandler'),
+  InvoiceToolHandler: Symbol.for('InvoiceToolHandler'),
+  QuotationToolHandler: Symbol.for('QuotationToolHandler'),
+  DeliverySlipToolHandler: Symbol.for('DeliverySlipToolHandler'),
   
   // Specific Resource Handlers
   CompaniesResourceHandler: Symbol.for('CompaniesResourceHandler'),
