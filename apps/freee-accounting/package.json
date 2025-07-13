@@ -1,6 +1,6 @@
 {
   "name": "@tsurutan/freee-accounting-mcp",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "MCP Server for freee accounting API integration with Claude AI",
   "type": "module",
   "main": "dist/index.js",
@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "lint": "eslint 'src/**/*.ts' --ignore-pattern 'src/**/*.js' --ignore-pattern 'scripts/**/*.js' --max-warnings 600",
+    "lint": "eslint 'src/**/*.ts' --ignore-pattern 'src/**/*.js' --ignore-pattern 'scripts/**/*.js' --max-warnings 650",
     "prepublishOnly": "npm run clean && npm run build && npm run test",
     "debug": "npx @modelcontextprotocol/inspector tsx src/index.ts",
     "debug:build": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",

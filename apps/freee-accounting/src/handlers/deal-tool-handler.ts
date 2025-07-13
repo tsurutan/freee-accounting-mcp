@@ -11,7 +11,7 @@ import { AppConfig } from '../config/app-config.js';
 import { EnvironmentConfig } from '../config/environment-config.js';
 import { FreeeApiClient } from '../infrastructure/freee-api-client.js';
 import { DateUtils } from '../utils/date-utils.js';
-import { CreateDealDto, UpdateDealDto, GetDealsDto } from '../utils/validator.js';
+import { CreateDealDto, UpdateDealDto, GetDealsDto, PaymentDetailDto } from '../utils/validator.js';
 import { MCPToolResponse } from '../utils/response-builder.js';
 
 /**
@@ -87,22 +87,31 @@ export class DealToolHandler extends BaseToolHandler {
       },
       {
         name: 'create-deal',
-        description: '新しい取引を作成します',
+        description: '新しい取引を作成します。freee API仕様に準拠したパラメーターを使用します。',
         inputSchema: {
           type: 'object',
           properties: {
             issue_date: {
               type: 'string',
-              description: '取引日（YYYY-MM-DD形式）',
+              description: '発生日（YYYY-MM-DD形式）',
             },
             type: {
               type: 'string',
               enum: ['income', 'expense'],
-              description: '取引タイプ（income: 収入, expense: 支出）',
+              description: '収支区分（income: 収入, expense: 支出）',
+            },
+            due_date: {
+              type: 'string',
+              description: '支払期日（YYYY-MM-DD形式、オプション）',
             },
             partner_id: {
               type: 'number',
+              minimum: 1,
               description: '取引先ID（オプション）',
+            },
+            partner_code: {
+              type: 'string',
+              description: '取引先コード（オプション）',
             },
             ref_number: {
               type: 'string',
@@ -110,34 +119,133 @@ export class DealToolHandler extends BaseToolHandler {
             },
             details: {
               type: 'array',
-              description: '取引明細',
+              description: '取引明細（必須）',
               items: {
                 type: 'object',
                 properties: {
-                  account_item_id: {
-                    type: 'number',
-                    description: '勘定科目ID',
-                  },
                   tax_code: {
                     type: 'number',
-                    description: '税区分コード',
+                    minimum: 0,
+                    maximum: 2147483647,
+                    description: '税区分コード（必須）',
+                  },
+                  account_item_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: '勘定科目ID（オプション）',
+                  },
+                  account_item_code: {
+                    type: 'string',
+                    description: '勘定科目コード（オプション）',
                   },
                   amount: {
                     type: 'number',
-                    description: '金額',
+                    minimum: -9223372036854776000,
+                    maximum: 9223372036854776000,
+                    description: '取引金額（税込、必須）。マイナス値は控除・マイナス行として登録',
                   },
-                  entry_side: {
+                  item_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: '品目ID（オプション）',
+                  },
+                  item_code: {
                     type: 'string',
-                    enum: ['credit', 'debit'],
-                    description: '貸借（credit: 貸方, debit: 借方）',
+                    description: '品目コード（オプション）',
+                  },
+                  section_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: '部門ID（オプション）',
+                  },
+                  section_code: {
+                    type: 'string',
+                    description: '部門コード（オプション）',
+                  },
+                  tag_ids: {
+                    type: 'array',
+                    items: {
+                      type: 'number',
+                      minimum: 1,
+                    },
+                    description: 'メモタグID配列（オプション）',
+                  },
+                  segment_1_tag_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: 'セグメント１タグID（オプション）',
+                  },
+                  segment_1_tag_code: {
+                    type: 'string',
+                    description: 'セグメント１タグコード（オプション）',
+                  },
+                  segment_2_tag_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: 'セグメント２タグID（オプション）',
+                  },
+                  segment_2_tag_code: {
+                    type: 'string',
+                    description: 'セグメント２タグコード（オプション）',
+                  },
+                  segment_3_tag_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: 'セグメント３タグID（オプション）',
+                  },
+                  segment_3_tag_code: {
+                    type: 'string',
+                    description: 'セグメント３タグコード（オプション）',
                   },
                   description: {
                     type: 'string',
                     description: '備考（オプション）',
                   },
+                  vat: {
+                    type: 'number',
+                    description: '消費税額（オプション、指定しない場合は自動計算）',
+                  },
                 },
-                required: ['account_item_id', 'tax_code', 'amount', 'entry_side'],
+                required: ['tax_code', 'amount'],
               },
+            },
+            payments: {
+              type: 'array',
+              description: '支払行一覧（オプション、未指定の場合は未決済の取引を作成）',
+              items: {
+                type: 'object',
+                properties: {
+                  amount: {
+                    type: 'number',
+                    minimum: -9223372036854776000,
+                    maximum: 9223372036854776000,
+                    description: '支払金額（必須）',
+                  },
+                  from_walletable_id: {
+                    type: 'number',
+                    minimum: 1,
+                    description: '口座ID（from_walletable_typeがprivate_account_itemの場合は勘定科目ID、必須）',
+                  },
+                  from_walletable_type: {
+                    type: 'string',
+                    enum: ['bank_account', 'credit_card', 'wallet', 'private_account_item'],
+                    description: '口座区分（bank_account: 銀行口座, credit_card: クレジットカード, wallet: 現金, private_account_item: プライベート資金、必須）',
+                  },
+                  date: {
+                    type: 'string',
+                    description: '支払日（YYYY-MM-DD形式、必須）',
+                  },
+                },
+                required: ['amount', 'from_walletable_id', 'from_walletable_type', 'date'],
+              },
+            },
+            receipt_ids: {
+              type: 'array',
+              items: {
+                type: 'number',
+                minimum: 1,
+              },
+              description: 'ファイルボックス（証憑ファイル）ID配列（オプション）',
             },
           },
           required: ['issue_date', 'type', 'details'],
@@ -409,8 +517,16 @@ export class DealToolHandler extends BaseToolHandler {
 
       // freee APIで取引を作成
       const createdDeal = await this.freeeClient.createDeal({
-        ...createDealDto,
-        company_id: companyId
+        issue_date: createDealDto.issue_date,
+        type: createDealDto.type,
+        company_id: companyId,
+        due_date: createDealDto.due_date,
+        partner_id: createDealDto.partner_id,
+        partner_code: createDealDto.partner_code,
+        ref_number: createDealDto.ref_number,
+        details: createDealDto.details,
+        payments: createDealDto.payments,
+        receipt_ids: createDealDto.receipt_ids
       });
 
       this.logger.info('Deal created successfully', {

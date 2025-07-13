@@ -9,20 +9,67 @@ import { Type, Transform } from 'class-transformer';
 import { AppError } from './error-handler.js';
 
 /**
- * 取引明細のDTO
+ * 取引明細のDTO (freee API仕様準拠)
  */
 export class DealDetailDto {
   @IsNumber()
-  account_item_id!: number;
-
-  @IsNumber()
   tax_code!: number;
+
+  @IsOptional()
+  @IsNumber()
+  account_item_id?: number;
+
+  @IsOptional()
+  @IsString()
+  account_item_code?: string;
 
   @IsNumber()
   amount!: number;
 
-  @IsEnum(['credit', 'debit'])
-  entry_side!: 'credit' | 'debit';
+  @IsOptional()
+  @IsNumber()
+  item_id?: number;
+
+  @IsOptional()
+  @IsString()
+  item_code?: string;
+
+  @IsOptional()
+  @IsNumber()
+  section_id?: number;
+
+  @IsOptional()
+  @IsString()
+  section_code?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  tag_ids?: number[];
+
+  @IsOptional()
+  @IsNumber()
+  segment_1_tag_id?: number;
+
+  @IsOptional()
+  @IsString()
+  segment_1_tag_code?: string;
+
+  @IsOptional()
+  @IsNumber()
+  segment_2_tag_id?: number;
+
+  @IsOptional()
+  @IsString()
+  segment_2_tag_code?: string;
+
+  @IsOptional()
+  @IsNumber()
+  segment_3_tag_id?: number;
+
+  @IsOptional()
+  @IsString()
+  segment_3_tag_code?: string;
 
   @IsOptional()
   @IsString()
@@ -30,11 +77,37 @@ export class DealDetailDto {
 
   @IsOptional()
   @IsNumber()
+  vat?: number;
+
+  // Backward compatibility for existing entry_side logic
+  @IsOptional()
+  @IsEnum(['credit', 'debit'])
+  entry_side?: 'credit' | 'debit';
+
+  @IsOptional()
+  @IsNumber()
   id?: number;
 }
 
 /**
- * 取引作成のDTO
+ * 支払明細のDTO (freee API仕様準拠)
+ */
+export class PaymentDetailDto {
+  @IsNumber()
+  amount!: number;
+
+  @IsNumber()
+  from_walletable_id!: number;
+
+  @IsEnum(['bank_account', 'credit_card', 'wallet', 'private_account_item'])
+  from_walletable_type!: 'bank_account' | 'credit_card' | 'wallet' | 'private_account_item';
+
+  @IsDateString()
+  date!: string;
+}
+
+/**
+ * 取引作成のDTO (freee API仕様準拠)
  */
 export class CreateDealDto {
   @IsDateString()
@@ -44,8 +117,16 @@ export class CreateDealDto {
   type!: 'income' | 'expense';
 
   @IsOptional()
+  @IsDateString()
+  due_date?: string;
+
+  @IsOptional()
   @IsNumber()
   partner_id?: number;
+
+  @IsOptional()
+  @IsString()
+  partner_code?: string;
 
   @IsOptional()
   @IsString()
@@ -55,6 +136,17 @@ export class CreateDealDto {
   @ValidateNested({ each: true })
   @Type(() => DealDetailDto)
   details!: DealDetailDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaymentDetailDto)
+  payments?: PaymentDetailDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  receipt_ids?: number[];
 }
 
 /**

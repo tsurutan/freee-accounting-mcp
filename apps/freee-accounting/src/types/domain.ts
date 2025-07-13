@@ -208,22 +208,44 @@ export interface DealFilter {
 
 export interface DealCreateRequest {
   companyId: number;
-  issueDate: string;
+  issue_date: string;
   type: 'income' | 'expense';
-  partnerId?: number;
-  refNumber?: string;
+  due_date?: string;
+  partner_id?: number;
+  partner_code?: string;
+  ref_number?: string;
   details: DealDetailCreateRequest[];
+  payments?: PaymentCreateRequest[];
+  receipt_ids?: number[];
 }
 
 export interface DealDetailCreateRequest {
-  accountItemId: number;
-  taxCode: number;
+  tax_code: number;
+  account_item_id?: number;
+  account_item_code?: string;
   amount: number;
-  itemId?: number;
-  sectionId?: number;
-  tagIds?: number[];
+  item_id?: number;
+  item_code?: string;
+  section_id?: number;
+  section_code?: string;
+  tag_ids?: number[];
+  segment_1_tag_id?: number;
+  segment_1_tag_code?: string;
+  segment_2_tag_id?: number;
+  segment_2_tag_code?: string;
+  segment_3_tag_id?: number;
+  segment_3_tag_code?: string;
   description?: string;
-  entrySide: 'credit' | 'debit';
+  vat?: number;
+  // Keep entrySide for backward compatibility with existing logic
+  entrySide?: 'credit' | 'debit';
+}
+
+export interface PaymentCreateRequest {
+  amount: number;
+  from_walletable_id: number;
+  from_walletable_type: 'bank_account' | 'credit_card' | 'wallet' | 'private_account_item';
+  date: string;
 }
 
 export interface DealUpdateRequest {
