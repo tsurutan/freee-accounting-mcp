@@ -9,8 +9,8 @@ import { EnvironmentConfig, AuthError } from '../config/environment-config.js';
 import { Logger } from '../infrastructure/logger.js';
 import { ErrorHandler, AppError } from '../utils/error-handler.js';
 import { IAuthService, ServiceHealthStatus } from '../interfaces/service.js';
-import { OAuthTokenResponse, AuthContext } from '../types/api.js';
-import { OAuthTokens } from '@mcp-server/types';
+import { AuthContext } from '../types/api.js';
+import { OAuthTokens, OAuthTokenResponse } from '../infrastructure/oauth-client.js';
 
 /**
  * 認証状態の型定義

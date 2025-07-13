@@ -39,7 +39,7 @@ import {
   HttpError
 } from '../types/api.js';
 import { AppError } from '../utils/error-handler.js';
-import { OAuthTokens } from '@mcp-server/types';
+import { OAuthTokens } from '../infrastructure/oauth-client.js';
 
 /**
  * 基本サービスインターフェース

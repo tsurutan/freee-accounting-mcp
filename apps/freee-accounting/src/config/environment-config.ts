@@ -7,9 +7,8 @@ import convict from 'convict';
 import { Result, ok, err } from 'neverthrow';
 import * as fs from 'fs';
 import * as path from 'path';
-import { FreeeOAuthClient } from '@mcp-server/shared';
-import { OAuthConfig } from '@mcp-server/types';
 import { config as dotenvConfig } from 'dotenv';
+import { FreeeOAuthClient, OAuthConfig } from '../infrastructure/oauth-client.js';
 
 
 /**
